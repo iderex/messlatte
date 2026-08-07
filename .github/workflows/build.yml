@@ -1,0 +1,80 @@
+# The build gate (#20).
+#
+# It compiles every crate and every target in the workspace and treats a warning
+# as an error.
+#
+# Warnings denied is the part that carries the argument. A warning that is
+# allowed to persist is a warning nobody reads, and the ones this repository
+# cannot afford to lose are the numerical ones: an unused result from a fallible
+# parse, a comparison that is always true because a type is unsigned, an
+# unreachable arm in a match over what a case declares a method may know. In a
+# project whose output is a number, a compiler observation is the cheapest
+# review available.
+#
+# `-D warnings` arrives through RUSTFLAGS rather than on the command line,
+# because the command line form applies to the one crate cargo is asked for and
+# the environment form reaches every unit in the build. It does not reach the
+# dependencies: cargo compiles anything outside this workspace with
+# `--cap-lints allow`, so a warning in a crate this repository did not write
+# cannot red this gate, and a warning in one it did write cannot escape it.
+#
+# `--all-targets` is what puts the tests and the benchmarks under the same rule.
+# Without it the gate stops at the libraries and the binary, and a benchmark
+# that stopped compiling would be discovered by whoever needed a cost figure,
+# which is the moment they will skip it.
+#
+# What it does not cover, said here rather than left to be assumed. Neither
+# `cargo build --all-targets` nor `cargo clippy --all-targets` compiles the
+# examples inside documentation comments, so a doc example that stopped
+# compiling passes every check in this repository today. Compiling those is
+# `cargo test --doc`, and the check that would run it is #22.
+#
+# `--locked` refuses to move `Cargo.lock`. A gate that resolves a different
+# dependency set from the one in the tree is judging something other than what a
+# reader would build.
+#
+# This gate overlaps the lint gate, which also compiles and also denies
+# warnings, and the overlap is deliberate. They are separate checks because they
+# fail for different reasons and a reader should not have to open a log to learn
+# which of the two went red.
+name: Build
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+# Deny by default; the job takes only what it needs.
+permissions: {}
+
+# A superseded run on the same ref is cancelled. Nothing here publishes, so
+# cancelling one costs a rebuild and nothing else.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so the token is not persisted in .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain this run resolved
+        # `rust-toolchain.toml` decides this, and the step prints what it got
+        # rather than leaving the reader to assume the pin was honoured.
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Build every crate and every target, warnings denied
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo build --workspace --all-targets --locked
