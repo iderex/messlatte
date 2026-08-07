@@ -17,9 +17,31 @@ members = [
 
 [workspace.package]
 version = "0.0.0"
-# The edition is not the minimum supported toolchain. That floor is one number
-# in one file with a written reason and it belongs to #23, which has not landed.
 edition = "2021"
+
+# The oldest toolchain this workspace is built with, and the promise an operator
+# on a distribution that ships something older is held to (#23).
+#
+# The number is not chosen, it is measured. It is the highest rust-version any
+# package in the resolved dependency graph declares:
+#
+#     cargo metadata --format-version 1 | ... | sort by rust_version
+#     hashbrown 0.17.1        rust-version 1.85.0
+#     indexmap 2.14.0         rust-version 1.85
+#     serde_spanned 1.1.1     rust-version 1.85
+#     toml 1.1.4              rust-version 1.85
+#     toml_datetime 1.1.1     rust-version 1.85
+#     toml_parser 1.1.3       rust-version 1.85
+#     toml_writer 1.1.2       rust-version 1.85
+#
+# Nothing in this workspace's own code needs 1.85. If the dependency set stops
+# forcing it, this number moves down by measurement rather than by preference,
+# and it moves up the same way. Either way it moves here and in #23, not in an
+# operator's terminal.
+#
+# The edition above is a different number with a different purpose and is not
+# the floor.
+rust-version = "1.85.0"
 publish = false
 
 # The lint set, in the tree rather than on a command line, so that what is
