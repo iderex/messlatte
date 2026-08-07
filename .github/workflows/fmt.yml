@@ -1,0 +1,49 @@
+# The formatting gate (#21).
+#
+# Separate from the lint gate on purpose. The two fail for different reasons and
+# a reader should not have to open a log to learn which of them went red. This
+# one exists so that no review comment is ever about whitespace and so that a
+# diff shows only what changed in meaning.
+#
+# The formatter is not invoked with a version of its own. `rust-toolchain.toml`
+# pins the toolchain and lists `rustfmt` as a component, so rustup resolves the
+# same formatter here as on a contributor's machine, and the step below prints
+# what it resolved rather than leaving it to be assumed.
+name: Formatting
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+# Deny by default; the job takes only what it needs.
+permissions: {}
+
+# A superseded run on the same ref is cancelled. This is a read-only check with
+# nothing to publish, so cancelling one costs nothing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so the token is not persisted in .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain this run resolved
+        run: |
+          rustc --version
+          cargo --version
+          cargo fmt --version
+
+      - name: Check formatting across the workspace
+        run: cargo fmt --all -- --check

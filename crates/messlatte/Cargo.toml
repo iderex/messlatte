@@ -11,3 +11,6 @@ messlatte-generator = { path = "../generator" }
 messlatte-method-frogcrab = { path = "../methods/frogcrab" }
 messlatte-scoring = { path = "../scoring" }
 messlatte-ensemble = { path = "../ensemble" }
+
+[lints]
+workspace = true

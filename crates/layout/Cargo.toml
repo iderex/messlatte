@@ -6,3 +6,6 @@ publish.workspace = true
 
 [dependencies]
 toml = "1"
+
+[lints]
+workspace = true

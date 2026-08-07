@@ -6,3 +6,6 @@ publish.workspace = true
 
 [dependencies]
 messlatte-units = { path = "../units" }
+
+[lints]
+workspace = true

@@ -1,0 +1,48 @@
+# The lint gate (#21).
+#
+# Separate from the formatting gate, because the two fail for different reasons.
+#
+# Which lints are on is not decided here. It is `[workspace.lints.clippy]` in
+# the root manifest, which every crate opts into, so the set is reviewable in
+# one place and a local `cargo clippy` gives the same verdict this job does.
+# `-D warnings` on the command line below is the belt to that braces: it catches
+# a warning from a lint the manifest does not name, including a rustc warning
+# clippy passes through.
+#
+# `--all-targets` is what makes the tests and the integration tests linted too.
+# Without it the lint set stops at the library, which is most of the code this
+# repository will have.
+name: Lints
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Report the toolchain this run resolved
+        run: |
+          rustc --version
+          cargo --version
+          cargo clippy --version
+
+      - name: Lint the workspace, tests included
+        run: cargo clippy --workspace --all-targets -- -D warnings
