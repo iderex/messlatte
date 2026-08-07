@@ -1,0 +1,17 @@
+# The toolchain a contributor gets and the one a release is built with (#1).
+#
+# It is pinned rather than floating because what this repository publishes is an
+# interval and a failure rate over a few hundred reconstruction runs. A claim of
+# that shape can only be checked if the runs give the same digits somewhere else,
+# and a moving compiler is one of the things that moves the digits.
+#
+# `profile = "minimal"` keeps the download to what a build and the gates need.
+# `rustfmt` and `clippy` are listed because the formatting and lint gates run them
+# against this same pin, so a contributor who has the pin has what those gates use.
+#
+# The oldest toolchain an operator may build with is a different number with a
+# different purpose, and it does not live here. It belongs to #23.
+[toolchain]
+channel = "1.97.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
