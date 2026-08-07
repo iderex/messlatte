@@ -13,5 +13,9 @@ messlatte-method-frogcrab = { path = "../methods/frogcrab" }
 messlatte-scoring = { path = "../scoring" }
 messlatte-ensemble = { path = "../ensemble" }
 
+# Seeded so the advisory leg of the deny gate can be seen refusing. Removed by
+# the next commit. See #24.
+atty = "0.2.14"
+
 [lints]
 workspace = true
