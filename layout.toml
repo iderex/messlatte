@@ -1,0 +1,47 @@
+# The dependency directions of this workspace, declared here and refused by the
+# check in `crates/layout` (#19).
+#
+# `[roles]` maps a role to the roles it may depend on. `[crates]` gives every
+# workspace member its role. A member missing from `[crates]`, a role missing
+# from `[roles]`, and an edge outside a role's list are each refused, so the
+# declaration fails closed on a crate somebody forgot to place.
+#
+# Three of these directions carry a decision each and none of them is stylistic.
+#
+# A method may not reach the generator. A method whose trial trace comes from the
+# routine that produced the data is fitting a model that is exactly true,
+# discretisation included, so its error measures the search and not the physics
+# and every distortion this repository exists to expose leaves the numbers. That
+# is #5, and in one workspace the mistake is one `use` line.
+#
+# The scorer may not reach a method, so a measure cannot be tuned to the
+# internals of the thing it scores.
+#
+# Nothing below the binary may reach the plotting layer, so the numerical crates
+# stay usable by somebody who wants the numbers and not the pictures.
+#
+# The rule covers every dependency kind, normal, development and build. A method
+# reaching the generator only from its own test is the same import with a
+# smaller blast radius, and the one place the two forward models are compared on
+# purpose is not inside a method crate.
+
+[roles]
+units = []
+formats = ["units"]
+generator = ["units", "formats"]
+method = ["units", "formats"]
+scoring = ["units", "formats"]
+ensemble = ["units", "formats", "method"]
+plotting = ["units", "formats"]
+binary = ["units", "formats", "generator", "method", "scoring", "ensemble", "plotting"]
+layout = []
+
+[crates]
+messlatte-units = "units"
+messlatte-formats = "formats"
+messlatte-generator = "generator"
+messlatte-method-frogcrab = "method"
+messlatte-scoring = "scoring"
+messlatte-ensemble = "ensemble"
+messlatte-layout = "layout"
+messlatte = "binary"

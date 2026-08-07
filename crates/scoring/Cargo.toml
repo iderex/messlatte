@@ -1,0 +1,9 @@
+[package]
+name = "messlatte-scoring"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+messlatte-units = { path = "../units" }
+messlatte-formats = { path = "../formats" }

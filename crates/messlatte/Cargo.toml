@@ -1,0 +1,13 @@
+[package]
+name = "messlatte"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+messlatte-units = { path = "../units" }
+messlatte-formats = { path = "../formats" }
+messlatte-generator = { path = "../generator" }
+messlatte-method-frogcrab = { path = "../methods/frogcrab" }
+messlatte-scoring = { path = "../scoring" }
+messlatte-ensemble = { path = "../ensemble" }
