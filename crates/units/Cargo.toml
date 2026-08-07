@@ -3,3 +3,6 @@ name = "messlatte-units"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+
+[lints]
+workspace = true

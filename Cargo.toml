@@ -21,3 +21,37 @@ version = "0.0.0"
 # in one file with a written reason and it belongs to #23, which has not landed.
 edition = "2021"
 publish = false
+
+# The lint set, in the tree rather than on a command line, so that what is
+# allowed is reviewable and every exception carries the reason it is allowed
+# (#21).
+#
+# Each crate opts in with `lints.workspace = true`, so a new crate that forgets
+# the line is linted at the default level rather than at this one. That is a
+# gap in the mechanism and it is named here rather than left implicit.
+[workspace.lints.clippy]
+# Everything clippy turns on by default is an error rather than a warning. A
+# warning in a gate that denies warnings is the same thing with an extra step,
+# and saying it here means a local `cargo clippy` gives the same verdict as the
+# gate does.
+all = "deny"
+
+# The numerical lints, named one at a time because they are the ones this
+# repository cannot afford to lose and none of them is on by default.
+#
+# A cast that can silently drop the high bits or the sign of an index, a grid
+# size or a sample count.
+cast_possible_truncation = "deny"
+cast_sign_loss = "deny"
+cast_possible_wrap = "deny"
+# A cast that silently loses precision, which in double-precision numerics is
+# the mistake that produces a plausible answer rather than a wrong-looking one.
+cast_precision_loss = "deny"
+# Comparing floats for equality. The one place this repository wants an exact
+# comparison is a control that has to score exactly zero, and that site should
+# say so at the site rather than inherit silence from here.
+float_cmp = "deny"
+
+# Allowed lints go below this line, one per entry, each with the reason it is
+# allowed written beside it. There are none today. An entry with no reason is
+# what the review is for.
