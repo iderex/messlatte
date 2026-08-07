@@ -1,0 +1,10 @@
+[package]
+name = "messlatte-ensemble"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+messlatte-units = { path = "../units" }
+messlatte-formats = { path = "../formats" }
+messlatte-method-frogcrab = { path = "../methods/frogcrab" }

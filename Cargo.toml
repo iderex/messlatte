@@ -1,0 +1,22 @@
+# One workspace. Which crate may depend on which is declared in `layout.toml`
+# and refused by the check in `crates/layout` rather than left to whatever
+# imported what first (#19).
+[workspace]
+resolver = "2"
+members = [
+    "crates/units",
+    "crates/formats",
+    "crates/generator",
+    "crates/methods/frogcrab",
+    "crates/scoring",
+    "crates/ensemble",
+    "crates/layout",
+    "crates/messlatte",
+]
+
+[workspace.package]
+version = "0.0.0"
+# The edition is not the minimum supported toolchain. That floor is one number
+# in one file with a written reason and it belongs to #23, which has not landed.
+edition = "2021"
+publish = false
