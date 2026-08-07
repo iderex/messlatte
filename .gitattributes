@@ -1,0 +1,46 @@
+# Line endings and text attributes, settled before the first data file lands
+# (#29).
+#
+# The default. Every path git detects as text is normalised to a line feed on
+# the way into the index and checked out with a line feed, whatever a clone's
+# core.autocrlf happens to be. This project is written on Windows, where a
+# checkout that carries carriage returns into a tracked text file makes the hash
+# of a regenerated case differ from the hash in the index. That reads as a
+# determinism failure and is not one.
+* text=auto eol=lf
+
+# Text by name rather than by detection, so a file whose first bytes are unusual
+# is not guessed at.
+*.rs           text eol=lf
+*.toml         text eol=lf
+*.md           text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.txt          text eol=lf
+*.json         text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf
+Cargo.lock     text eol=lf
+
+# Binary, never touched. `binary` is git's own macro for `-text -diff`, so
+# nothing converts a line ending in one of these and a diff of one is a diff of
+# bytes.
+*.png  binary
+*.pdf  binary
+*.npy  binary
+*.bin  binary
+*.gz   binary
+*.zip  binary
+
+# The trace file, the truth file and the case archive have no class here yet,
+# because their formats are not written. Whichever of #35, #36 and #37 lands
+# first declares its own class in this file, and a data format that arrives
+# without one is covered by the default above, which is a guess.
+#
+# A fixture whose bytes are the point is not covered by any line in this file,
+# and cannot be. Attributes decide what happens to a file on the way into git,
+# and a fixture that exists to prove a reader handles a carriage return would be
+# normalised by the default above and silently lose the byte it was created for.
+# So the rule for those is that they are held encoded in source rather than as
+# raw literals in a tracked file, and what a test feeds a reader is what the
+# test wrote, whatever any attribute here says.
