@@ -1,0 +1,114 @@
+# What a dependency of this workspace may be, and what the `deny` gate refuses
+# (#24).
+#
+# Four refusals, each failing closed. A known advisory. A license outside the
+# set below. More than one version of one crate in the graph. A source outside
+# the registries named here.
+#
+# Every allowance in this file carries the reason it is allowed. Where the
+# reason is temporary it carries the condition that ends it. There are no
+# ignores, exceptions or skips today, and an empty list is written out rather
+# than omitted so that adding one is a visible edit rather than the appearance
+# of a key.
+
+[graph]
+# Judge the graph with every feature on. A dependency that only arrives under a
+# feature is still a dependency, and this workspace is where that feature would
+# be turned on.
+all-features = true
+# An empty target list means every target, so a crate that is only compiled on
+# one operating system is still judged. This repository claims bit-identical
+# output across platforms, so a dependency it does not look at on one of them is
+# exactly the one worth looking at.
+targets = []
+
+[advisories]
+# A withdrawn version is treated like an advisory. A yank is the author saying
+# the version should not be used, and the reason is frequently the same reason.
+yanked = "deny"
+# No advisory is ignored. An entry here would be an accepted risk, and it would
+# carry the advisory id, the reason it is accepted and what ends the acceptance.
+ignore = []
+
+[licenses]
+# Permissive only, and the reason is specific to this repository rather than a
+# preference. This repository has no license of its own yet, and choosing one is
+# entry 1 of #34. A dependency under a reciprocal license would settle part of
+# that question before the maintainer answers it, by making some of the options
+# in #34 unavailable. So the set below is the one that leaves every option in
+# #34 open, and it is widened by a decision written there rather than here.
+#
+# The set is what the graph resolves to today and nothing beyond it:
+#
+#     cargo deny --all-features list
+#     Apache-2.0 (6): serde_core, serde_spanned, toml, toml_datetime, toml_parser, toml_writer
+#     MIT (7): the same six and winnow
+#
+# A license nobody in the graph carries is an allowance with no subject, which
+# is the thing the rule about reasons is against, and cargo-deny reports one as
+# `license-not-encountered`. So a permissive license that is not here yet
+# reddens this gate on the pull request that first pulls it in, and is added
+# here in that pull request with the crate that brought it. That is the intended
+# cost and not an oversight.
+allow = [
+    "MIT",
+    "Apache-2.0",
+]
+# No per-crate exception. An exception is a crate allowed a license the set
+# refuses, and each would carry the crate, the license and the reason.
+exceptions = []
+# The default. A license file has to match a known text this closely before the
+# match is believed, and a file below the threshold is reported as unknown
+# rather than guessed at.
+confidence-threshold = 0.8
+
+# The crates in this workspace are not judged against the set above, and the
+# reason is the thing itself: none of them has a license, because this
+# repository has none. Every member carries `publish.workspace = true` against
+# a workspace `publish = false`, so nothing here is publishable and the check
+# below skips exactly the crates that are not.
+#
+# THIS IS A TEMPORARY ALLOWANCE AND THE CONDITION THAT ENDS IT IS ENTRY 1 OF
+# #34. On the day a license is chosen and a file lands, every member gets a
+# `license` field and this block comes out, at which point the gate judges this
+# workspace by the same rule it judges everything else by. Until then the gate
+# would refuse the whole tree for a decision that is not a dependency's fault
+# and not this file's to make.
+[licenses.private]
+ignore = true
+
+[bans]
+# Two versions of one crate in one binary can mean two implementations of one
+# operation, and which one reaches a scored number is decided by the resolver
+# rather than by anybody's choice. In a repository whose output is a number that
+# is a correctness problem and not a size problem.
+multiple-versions = "deny"
+# A wildcard version requirement is a dependency whose identity is decided at
+# resolve time, which is the opposite of the pin this repository builds with.
+wildcards = "deny"
+# A path dependency inside this workspace carries no version requirement and is
+# read as a wildcard by the rule above. It is not the thing that rule is about:
+# `{ path = "../units" }` resolves to the crate in this tree and to nothing
+# else, whatever any registry holds. The nine members depend on each other that
+# way, and which of them may depend on which is already refused, by
+# `layout.toml` and the check in `crates/layout` rather than here. So this
+# exempts the paths and leaves the rule in force for every version requirement
+# that could actually move.
+allow-wildcard-paths = true
+# No crate is banned by name. An entry here would name the crate and the reason.
+deny = []
+# Nothing is skipped. A skip exempts one crate from the duplicate-version rule,
+# and each would carry the reason and the condition that ends it.
+skip = []
+skip-tree = []
+
+[sources]
+# A dependency from anywhere not named below is refused, which is how a crate
+# arrives from somewhere nobody looked.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# No git dependency. A git source is a moving target unless it is pinned to a
+# revision, and a revision pinned here is a second place the dependency set
+# lives.
+allow-git = []
