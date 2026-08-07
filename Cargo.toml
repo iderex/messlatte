@@ -11,6 +11,7 @@ members = [
     "crates/scoring",
     "crates/ensemble",
     "crates/layout",
+    "crates/tree",
     "crates/messlatte",
 ]
 

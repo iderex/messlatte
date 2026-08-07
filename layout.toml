@@ -35,6 +35,7 @@ ensemble = ["units", "formats", "method"]
 plotting = ["units", "formats"]
 binary = ["units", "formats", "generator", "method", "scoring", "ensemble", "plotting"]
 layout = []
+tree = []
 
 [crates]
 messlatte-units = "units"
@@ -44,4 +45,5 @@ messlatte-method-frogcrab = "method"
 messlatte-scoring = "scoring"
 messlatte-ensemble = "ensemble"
 messlatte-layout = "layout"
+messlatte-tree = "tree"
 messlatte = "binary"
