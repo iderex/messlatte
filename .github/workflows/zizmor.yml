@@ -4,7 +4,10 @@
 # scopes granted anywhere are security-events, for the SARIF uploads, and
 # id-token, for the OpenSSF publish in scorecard.yml:
 #
-#     git grep -n ': write' -- .github/workflows
+#     git grep -nE '^ +[a-z-]+: write' -- .github/workflows
+#
+# The pattern is anchored at an indented scope line on purpose, so that this
+# comment is not itself one of the results.
 #
 # So the reason to audit these files is not a release with credentials attached.
 # It is that they are what decides which checks a change meets before it reaches
