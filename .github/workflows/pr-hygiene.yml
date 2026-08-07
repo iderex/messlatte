@@ -1,0 +1,136 @@
+# The pull request hygiene gate (#27).
+#
+# It reasons about the pull request rather than about the code: its linkage, its
+# size and its co-changes.
+#
+# Tiered by confidence, so it does not redden reasonable work. The failing tier
+# holds only legs with near-zero false positives. The advisory tier annotates
+# and never fails, because a new method, a document or a bulk rename
+# legitimately exceeds any size cap, and a cap that reddens honest work gets
+# bypassed and then ignored.
+#
+# It is first-party. No review service is part of the merge path, and nothing
+# here reads anything outside this repository.
+#
+# A leg that cannot run says so, with the reason, and does not count as passed.
+# A skip that looks like a pass is worse than no check.
+#
+# Every value taken from the pull request arrives through the environment and is
+# never interpolated into a shell script, so a crafted title or body is data and
+# never something the runner evaluates.
+name: PR hygiene
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches: ["**"]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Deterministic PR-hygiene checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history, so base..head is walkable.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: The failing tier
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -u
+          failed=0
+
+          echo "== the body carries an issue reference =="
+          if printf '%s' "$PR_BODY" | grep -Eq '#[0-9]+'; then
+            echo "PASS: the body names at least one issue"
+          else
+            echo "FAIL: the body names no issue. Every change starts as an issue."
+            failed=1
+          fi
+
+          echo "== every commit subject carries an issue reference =="
+          if ! git log --no-merges --format=%s "$BASE_SHA..$HEAD_SHA" > subjects.txt; then
+            echo "NOT RUN: the base..head range could not be walked, so no"
+            echo "subject was read. This leg did not pass. It could not judge."
+            failed=1
+          elif [ ! -s subjects.txt ]; then
+            echo "NOT RUN: base..head holds no commit, so there is no subject to"
+            echo "read. This leg did not pass. It had nothing to judge."
+            failed=1
+          else
+            bad=0
+            while IFS= read -r subject; do
+              if printf '%s' "$subject" | grep -Eq '#[0-9]+'; then
+                echo "PASS: $subject"
+              else
+                echo "FAIL: $subject"
+                bad=1
+              fi
+            done < subjects.txt
+            if [ "$bad" = "1" ]; then
+              echo "FAIL: a commit subject names no issue."
+              failed=1
+            fi
+          fi
+          rm -f subjects.txt
+
+          echo "== a file format version change also touches the changelog =="
+          # This leg has no subject in this repository yet. There is no
+          # CHANGELOG.md and no file carries a format version, so there is
+          # nothing for it to compare. It reports that rather than passing,
+          # because a leg nobody asked cannot be read as one that was asked and
+          # found nothing.
+          if [ -f CHANGELOG.md ]; then
+            echo "NOT RUN: CHANGELOG.md exists but no file format declares a"
+            echo "version yet, so the pair this leg compares does not exist."
+            echo "It is asked for by #91 and by the format issues in milestone 03."
+          else
+            echo "NOT RUN: there is no CHANGELOG.md and no file format version in"
+            echo "this repository, so this leg has nothing to compare."
+            echo "It is asked for by #91 and by the format issues in milestone 03."
+          fi
+          echo "This leg did not pass and did not fail. It was not run."
+
+          exit "$failed"
+
+      - name: The advisory tier
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -u
+
+          echo "== size =="
+          changed="$(git diff --numstat "$BASE_SHA..$HEAD_SHA" | awk '{ added += $1; removed += $2 } END { print added + removed + 0 }')"
+          echo "changed lines: $changed"
+          if [ "$changed" -gt 400 ]; then
+            echo "::warning::This change touches $changed lines. Over four hundred is where a reader stops reading. If it is one readable thing, say which property holds across every changed byte; if it is not, the issue was probably scoped wrong."
+          else
+            echo "under the four hundred line mark"
+          fi
+
+          echo "== a scoring or generator change with no test change =="
+          risky="$(git diff --name-only "$BASE_SHA..$HEAD_SHA" | grep -E '^crates/(scoring|generator)/' || true)"
+          tests="$(git diff --name-only "$BASE_SHA..$HEAD_SHA" | grep -E '(^|/)tests?/|_test\.rs$|/tests\.rs$' || true)"
+          if [ -n "$risky" ] && [ -z "$tests" ]; then
+            echo "::warning::This change touches the scoring or generator crates and no test. Those are the two places where a wrong answer looks like a right one."
+          else
+            echo "nothing to say"
+          fi
+
+          echo "The advisory tier never fails. Everything above is an annotation."
