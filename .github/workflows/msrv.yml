@@ -1,0 +1,57 @@
+# The minimum supported toolchain gate (#23).
+#
+# Separate from the build gate on purpose. `rust-toolchain.toml` pins what a
+# contributor gets and what a release is built with. The floor is a different
+# promise, made to an operator on a distribution that ships something older, and
+# a promise nobody tests is not a promise. The two drift the first time a
+# dependency raises its own floor, and the drift is silent until somebody's
+# build fails.
+#
+# The number lives in the root manifest and nowhere else. This job reads it from
+# there rather than carrying a copy, because a copy in a workflow file is the
+# second place the floor would live and the two would disagree without anything
+# saying so.
+name: Minimum supported toolchain
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  msrv:
+    name: msrv build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the floor out of the root manifest
+        run: |
+          # The crate manifests inherit with `rust-version.workspace = true`,
+          # which this pattern does not match, so exactly one line can answer.
+          floor="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml)"
+          if [ "$(printf '%s\n' "$floor" | grep -c .)" != "1" ]; then
+            echo "the root manifest does not declare exactly one floor" >&2
+            exit 1
+          fi
+          echo "The declared floor is $floor"
+          echo "FLOOR=$floor" >> "$GITHUB_ENV"
+
+      - name: Build the workspace with the floor
+        run: |
+          rustup toolchain install "$FLOOR" --profile minimal --no-self-update
+          rustc "+$FLOOR" --version
+          cargo "+$FLOOR" --version
+          cargo "+$FLOOR" build --workspace --all-targets --locked
