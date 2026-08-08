@@ -1,0 +1,167 @@
+# The coverage check (#25).
+#
+# It measures and it reports. It does not gate on a percentage, because a floor
+# is met by testing whatever is easy and the paths that matter here are the
+# refusals. Those get their own numbers below rather than being diluted into one
+# repository-wide figure.
+#
+# What it does gate on is a report existing. A coverage run that produces no
+# report has to be red: a silent absence reads exactly like a clean result, and
+# that is how a project comes to believe it is still measuring something it
+# stopped measuring.
+#
+# The summary table carries region, function, line and branch columns in one
+# place, so a crate whose lines are covered and whose functions are not is
+# visible rather than inferred. That gap is real and was measured once already,
+# in #99.
+#
+# The tool is installed from crates.io at a pinned version rather than through a
+# third-party action, which is the same shape the other jobs in this repository
+# use: `actions/checkout` and then the toolchain's own commands.
+name: Coverage
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the coverage tool
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --version 0.8.7 --locked
+          cargo llvm-cov --version
+
+      - name: Run the default suite under instrumentation
+        run: |
+          cargo llvm-cov --workspace --no-report --locked
+
+      - name: The percentage, and the command that produced it
+        run: |
+          set -u
+          echo "== the command =="
+          echo "cargo llvm-cov report --summary-only"
+          echo
+          cargo llvm-cov report --summary-only
+          echo
+          echo "== the machine-readable report =="
+          echo "cargo llvm-cov report --lcov --output-path lcov.info"
+          cargo llvm-cov report --lcov --output-path lcov.info
+
+      - name: The report has to exist
+        if: always()
+        run: |
+          set -u
+          if [ ! -s lcov.info ]; then
+            echo "no coverage report was produced, so nothing was measured."
+            echo "A silent absence reads exactly like a clean result, which is"
+            echo "the failure this leg exists for. This is red."
+            exit 1
+          fi
+          echo "lcov.info exists and is $(wc -c < lcov.info) bytes"
+
+      - name: The refusal paths, with their own numbers
+        run: |
+          set -u
+
+          echo "The site list is derived from the source rather than written"
+          echo "down, so it cannot go stale against the code. A refusal site is"
+          echo "a line in a crate's src/ that constructs a refusal value,"
+          echo "renders one, or returns an error:"
+          echo
+          echo "    git grep -n -E 'Refusal::[A-Z]|Err\(|ok_or_else\(|map_err\(' -- 'crates/*/src/*.rs' 'crates/*/*/src/*.rs'"
+          echo
+          echo "What that misses, said here rather than left to be discovered."
+          echo "A refusal expressed some other way is not found. A refusal in a"
+          echo "test rather than in src/ is not looked for. The number beside a"
+          echo "site is the execution count of its line, so a line reached once"
+          echo "and a line reached nine times are both reported as reached, and"
+          echo "a branch inside one line is not separated."
+          echo
+          echo "A site marked no-line-record is a line the report carries no"
+          echo "count for, which is what a multi-line pattern does when the"
+          echo "counted region begins on another line. It is not a site that was"
+          echo "never reached, and it is counted apart from those for that"
+          echo "reason."
+          echo
+
+          git grep -n -E 'Refusal::[A-Z]|Err\(|ok_or_else\(|map_err\(' -- 'crates/*/src/*.rs' 'crates/*/*/src/*.rs' > sites.txt || true
+
+          if [ ! -s sites.txt ]; then
+            echo "the derivation found no refusal site at all."
+            echo "An empty list reads exactly like a list where every one of"
+            echo "them is covered. This is red."
+            exit 1
+          fi
+
+          awk '
+            FILENAME == lcov {
+              if ($0 ~ /^SF:/) {
+                path = substr($0, 4)
+                gsub(/\\/, "/", path)
+                file = path
+                next
+              }
+              if ($0 ~ /^DA:/) {
+                split(substr($0, 4), a, ",")
+                count[file ":" (a[1] + 0)] = a[2]
+              }
+              next
+            }
+            {
+              p = index($0, ":")
+              path = substr($0, 1, p - 1)
+              rest = substr($0, p + 1)
+              q = index(rest, ":")
+              line = substr(rest, 1, q - 1) + 0
+              text = substr(rest, q + 1)
+              sub(/^[ \t]+/, "", text)
+
+              found = "no-line-record"
+              suffix = path ":" line
+              for (key in count) {
+                if (length(key) >= length(suffix) && substr(key, length(key) - length(suffix) + 1) == suffix) {
+                  found = count[key]
+                  break
+                }
+              }
+
+              if (found == "no-line-record") norecord++
+              else if (found + 0 == 0) never++
+              else reached++
+              total++
+
+              printf "%14s  %s:%s  %s\n", found, path, line, text
+            }
+            END {
+              printf "\nrefusal sites: %d\n", total + 0
+              printf "reached by the default suite: %d\n", reached + 0
+              printf "never executed: %d\n", never + 0
+              printf "no line record: %d\n", norecord + 0
+            }
+          ' lcov="lcov.info" lcov.info sites.txt
+
+          rm -f sites.txt
+
+          echo
+          echo "Reported, not gated. A site that is never executed is either a"
+          echo "case somebody owes or a line that cannot be reached, and the"
+          echo "second kind is worth deleting."
