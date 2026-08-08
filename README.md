@@ -7,3 +7,16 @@ the architecture is written down there with its reasons before the code
 that depends on it exists.
 
 See [NOTICE.md](NOTICE.md) for the intended-use notice.
+
+## License
+
+AGPL-3.0, decided by the maintainer on 2026-08-08. It answers entry 1 of
+issue #34 and no other entry in that issue.
+
+The full text is in [LICENSE](LICENSE). Read that file rather than this line,
+and if you want the platform's own reading of it, run:
+
+    gh api repos/iderex/messlatte --jq '.license.spdx_id'
+
+The terms on the generated case archive are entry 2 of issue #34, and that
+entry is not answered here.
