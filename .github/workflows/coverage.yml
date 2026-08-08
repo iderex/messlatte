@@ -63,8 +63,8 @@ jobs:
           cargo llvm-cov report --summary-only
           echo
           echo "== the machine-readable report =="
-          echo "cargo llvm-cov report --lcov --output-path lcov-elsewhere.info"
-          cargo llvm-cov report --lcov --output-path lcov-elsewhere.info
+          echo "cargo llvm-cov report --lcov --output-path lcov.info"
+          cargo llvm-cov report --lcov --output-path lcov.info
 
       - name: The report has to exist
         if: always()
