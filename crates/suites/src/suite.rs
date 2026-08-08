@@ -132,11 +132,16 @@ pub fn from_env(suite: Suite) -> Result<Enrolment, String> {
 /// It reports the default suite as having run, because the caller is a case
 /// inside it. Everything else is reported with its reason and its cost, and the
 /// closing line says in words that what did not run did not pass.
+///
+/// The default line names no fixture. There is no case in this tree for the
+/// default suite to run on, and the line said there was one, which is a claim of
+/// coverage in the one block a reader consults to find out how much a run
+/// covered. #32 is what puts a case here, and the line moves when it does.
 pub fn report(enrolments: &[(Suite, Enrolment)]) -> String {
     let mut out = String::new();
     out.push_str("suites in this run\n");
     out.push_str(
-        "  default        RAN      every unit and property case, on the committed fixture\n",
+        "  default        RAN      every unit and property case. No case is tracked to run on\n",
     );
 
     for (suite, enrolment) in enrolments {

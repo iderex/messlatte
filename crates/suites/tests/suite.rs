@@ -85,6 +85,24 @@ fn the_default_suite_is_in_the_report_even_though_it_is_not_opt_in() {
 }
 
 #[test]
+fn the_default_line_names_no_fixture_while_the_tree_holds_none() {
+    // The line used to say the default suite ran "on the committed fixture".
+    // Nothing is committed for it to run on: no case, no trace and no truth file
+    // is tracked, and #32 is what puts one here. The rest of this report exists
+    // to stop a run being read as more than it was, so a claim of coverage on its
+    // first line is the worst place in the output for one.
+    //
+    // This refuses the word rather than the old sentence, because the sentence is
+    // one of many that would make the same claim. When #32 lands, a case is
+    // tracked, and this case is changed deliberately alongside the line.
+    let text = report(&[]);
+    assert!(
+        !text.to_lowercase().contains("fixture"),
+        "the default line names a fixture and none is tracked: {text}"
+    );
+}
+
+#[test]
 fn the_report_from_the_environment_covers_every_suite() {
     // The only case here that reads the environment. It asserts coverage rather
     // than a verdict, because the verdict is a fact about whoever started this
