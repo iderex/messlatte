@@ -141,7 +141,7 @@ pub fn report(enrolments: &[(Suite, Enrolment)]) -> String {
     let mut out = String::new();
     out.push_str("suites in this run\n");
     out.push_str(
-        "  default        RAN      every unit and property case. No case is tracked to run on\n",
+        "  default        RAN      every unit and property case, on the committed fixture\n",
     );
 
     for (suite, enrolment) in enrolments {
