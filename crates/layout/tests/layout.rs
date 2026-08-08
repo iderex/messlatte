@@ -10,6 +10,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use messlatte_layout::{declaration_from_str, graph_from_workspace, refuse, Graph, Refusal, Side};
+use messlatte_suites::Scratch;
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -237,38 +238,45 @@ fn an_edge_in_the_lock_file_and_not_in_the_manifests_is_refused() {
     );
 }
 
-/// Write a two-crate workspace to a scratch directory and return its root. The
+/// Write a two-crate workspace into a scratch directory and return it. The
 /// method crate reaches the generator crate under `heading`, so the caller
 /// chooses which dependency table carries the forbidden edge.
-fn scratch_workspace(name: &str, heading: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(name);
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("g/src")).unwrap();
-    std::fs::create_dir_all(root.join("m/src")).unwrap();
-
-    std::fs::write(
-        root.join("Cargo.toml"),
-        "[workspace]\nresolver = \"2\"\nmembers = [\"g\", \"m\"]\n",
-    )
-    .unwrap();
-    std::fs::write(
-        root.join("g/Cargo.toml"),
-        "[package]\nname = \"g\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
-    )
-    .unwrap();
-    std::fs::write(
-        root.join("m/Cargo.toml"),
-        format!("[package]\nname = \"m\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\n[{heading}]\ng = {{ path = \"../g\" }}\n"),
-    )
-    .unwrap();
-    std::fs::write(root.join("g/src/lib.rs"), "").unwrap();
-    std::fs::write(root.join("m/src/lib.rs"), "").unwrap();
-    std::fs::write(
-        root.join("Cargo.lock"),
-        "version = 4\n\n[[package]]\nname = \"g\"\nversion = \"0.0.0\"\n\n[[package]]\nname = \"m\"\nversion = \"0.0.0\"\ndependencies = [\n \"g\",\n]\n",
-    )
-    .unwrap();
-    root
+///
+/// The caller keeps the returned value for as long as it reads the workspace,
+/// because the directory is removed when it is dropped. It is a `Scratch`
+/// rather than a path under the temporary directory chosen here, which is what
+/// #14 requires of a default-suite case and also what keeps two runs of this
+/// suite at once from writing over each other: the previous form named one
+/// fixed directory per case and emptied it on the way in.
+fn scratch_workspace(label: &str, heading: &str) -> Scratch {
+    let scratch = Scratch::new(label).expect("a scratch directory can be made");
+    scratch
+        .write(
+            "Cargo.toml",
+            b"[workspace]\nresolver = \"2\"\nmembers = [\"g\", \"m\"]\n",
+        )
+        .unwrap();
+    scratch
+        .write(
+            "g/Cargo.toml",
+            b"[package]\nname = \"g\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+    scratch
+        .write(
+            "m/Cargo.toml",
+            format!("[package]\nname = \"m\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\n[{heading}]\ng = {{ path = \"../g\" }}\n").as_bytes(),
+        )
+        .unwrap();
+    scratch.write("g/src/lib.rs", b"").unwrap();
+    scratch.write("m/src/lib.rs", b"").unwrap();
+    scratch
+        .write(
+            "Cargo.lock",
+            b"version = 4\n\n[[package]]\nname = \"g\"\nversion = \"0.0.0\"\n\n[[package]]\nname = \"m\"\nversion = \"0.0.0\"\ndependencies = [\n \"g\",\n]\n",
+        )
+        .unwrap();
+    scratch
 }
 
 #[test]
@@ -277,8 +285,8 @@ fn a_forbidden_edge_declared_only_as_a_development_dependency_is_still_refused()
     // with a smaller blast radius, so the derivation reads dev-dependencies
     // into the same edge set. This case is about the derivation and not about
     // the rule, so it builds a workspace on disk rather than a graph in memory.
-    let root = scratch_workspace("messlatte-layout-dev-dependency", "dev-dependencies");
-    let graph = graph_from_workspace(&root).expect("the scratch workspace derives");
+    let workspace = scratch_workspace("layout-dev-dependency", "dev-dependencies");
+    let graph = graph_from_workspace(workspace.path()).expect("the scratch workspace derives");
 
     assert_eq!(
         graph.manifest_edges,
@@ -302,8 +310,8 @@ fn a_normal_dependency_is_read_by_the_same_derivation() {
     // The neighbour of the case above: one word different in the manifest, the
     // same edge derived, so the previous case is about the heading and not
     // about something else the derivation happens to do.
-    let root = scratch_workspace("messlatte-layout-normal-dependency", "dependencies");
-    let graph = graph_from_workspace(&root).expect("the scratch workspace derives");
+    let workspace = scratch_workspace("layout-normal-dependency", "dependencies");
+    let graph = graph_from_workspace(workspace.path()).expect("the scratch workspace derives");
 
     assert_eq!(
         graph.manifest_edges,

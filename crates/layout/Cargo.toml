@@ -8,5 +8,13 @@ publish.workspace = true
 [dependencies]
 toml = "1"
 
+# The cases that build a workspace on disk write through the scratch directory
+# rather than choosing a path under the temporary directory themselves, which is
+# what #14 requires of a case in the default suite. The edge is a development
+# dependency and `layout.toml` declares it, because the layout rule reads that
+# table into the same edge set as the others.
+[dev-dependencies]
+messlatte-suites = { path = "../suites" }
+
 [lints]
 workspace = true
