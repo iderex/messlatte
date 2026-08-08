@@ -1,0 +1,69 @@
+# The test gate (#22).
+#
+# It runs the default suite and nothing else. Every unit and property case, on
+# what the tree carries, with no generation step, no network, no display and no
+# elevation.
+#
+# It is thin on purpose. The split between the default suite and the three
+# opt-in ones is a property of the harness rather than of this file, so nothing
+# here lists what may not happen. The guard in `crates/suites` refuses a
+# default-suite case that binds a socket or writes through the standard entry
+# points, and that guard is itself a case in the default suite, so this job
+# reddens when the harness reports one. A list in this file of what a case may
+# not do would be a second copy of that rule, and the copy is what drifts.
+#
+# The three opt-in suites are asked for with a variable each and no variable is
+# set here. That is what makes them not run, and the last step is what makes the
+# omission legible: it prints which suites ran, which did not, why, and what
+# running them would cost. A run that covered one suite out of four must not be
+# readable as one that covered four and found nothing.
+#
+# That step carries `if: always()`, so the report is the last thing in the log
+# of a red run as well as a green one. It does not rescue the job: a failure in
+# the step above it still fails the job, because a later step cannot pass a
+# run that already failed.
+#
+# `--locked` refuses to move `Cargo.lock`. A run that resolved a different
+# dependency set from the one in the tree would be judging something other than
+# what a reader would build.
+name: Tests
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+# Deny by default; the job takes only what it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so the token is not persisted in .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain this run resolved
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Run the default suite
+        # The guard reads what git tracks rather than the working directory, so
+        # this needs the checkout to be a git repository and nothing more.
+        run: cargo test --workspace --locked
+
+      - name: The suites this run covered, and the ones it did not
+        if: always()
+        run: cargo test -p messlatte-suites --test inventory --locked
