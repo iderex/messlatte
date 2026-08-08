@@ -15,8 +15,9 @@
 # It fails closed. One commit without a matching trailer reds the check.
 #
 # What a sign-off asserts includes a right to submit the work under the
-# project's license, and this repository has no license file, so today the
-# assertion names nothing. That is entry 1 of #34 and is not settled here.
+# project's license, and that license is AGPL-3.0, in `LICENSE` at the root. So
+# the assertion names something, which it did not while entry 1 of #34 was open.
+# What that license means for a contribution is not decided here.
 name: DCO
 
 on:
