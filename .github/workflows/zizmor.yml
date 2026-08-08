@@ -1,6 +1,20 @@
-# Static analysis of the GitHub Actions workflows themselves (zizmor). The
-# workflow YAML is release-critical attack surface - publish-beta.yml runs on
-# every push to main with contents:write - so it is audited like any other code.
+# Static analysis of the GitHub Actions workflows themselves (zizmor).
+#
+# No workflow in this tree can write the repository's contents. The only write
+# scopes granted anywhere are security-events, for the SARIF uploads, and
+# id-token, for the OpenSSF publish in scorecard.yml:
+#
+#     git grep -nE '^ +[a-z-]+: write' -- .github/workflows
+#
+# The pattern is anchored at an indented scope line on purpose, so that this
+# comment is not itself one of the results.
+#
+# So the reason to audit these files is not a release with credentials attached.
+# It is that they are what decides which checks a change meets before it reaches
+# the default branch, and a workflow that can be edited into passing is a gate
+# that reports whatever its author wanted it to. A workflow holding write access
+# to contents would be a second and larger reason, and the first one that could
+# arrive here is the release path in #92.
 #
 # The gate runs zizmor's regular persona at --min-severity=low: it fails the
 # build on any actionable (low/medium/high/critical) security finding -
@@ -9,15 +23,20 @@
 # regular persona is the one zizmor documents for CI ("high-signal, low-noise,
 # actionable"). The pedantic persona is deliberately NOT used to gate: it adds
 # low-severity hygiene findings (undocumented permissions, missing concurrency,
-# pin-comment mismatches, unnamed jobs) that are stylistic, not security-blocking,
-# and some are context-blind (it would demand run-cancelling concurrency on the
-# release workflows, which must never be cancelled mid-publish). That backlog is
-# tracked as a code-quality task (#263), not gated here.
+# pin-comment mismatches, unnamed jobs) that are stylistic rather than
+# security-blocking, and some of them are blind to why a file is the way it is.
+# The unnamed job in dependency-review.yml is the example already in this tree:
+# it has no `name:` for a reason written at the job, and the pedantic persona
+# would redden it anyway. No issue here holds that backlog today, and this
+# comment is not one.
 #
-# Rule for future workflow changes: every new or edited workflow must pass this
-# gate before merge. Keep actions SHA-pinned, keep checkout on
-# persist-credentials:false, grant write permissions per job (never
-# workflow-level), and never restore a cache in a job that publishes a release.
+# What a new or edited workflow in this repository is held to. It passes this
+# gate before it merges. Actions stay SHA-pinned with the version in a comment
+# beside the pin. Checkout stays on persist-credentials:false wherever no step
+# pushes. A write permission is granted on the job that needs it and never at
+# the top of a file. And on the day a job here does publish something, it
+# restores no cache, because a cache is writable by anything that can run a job
+# on any branch.
 name: Workflow Security Analysis
 
 on:

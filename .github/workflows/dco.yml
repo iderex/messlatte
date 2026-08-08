@@ -1,9 +1,22 @@
-# Developer Certificate of Origin (DCO) sign-off gate (#746). A contributor
-# legal-authorization mechanism - OpenSSF Silver / OSPS-LE-01.01 - implemented as a
-# self-contained first-party check, no external DCO App or third-party action (the
-# same internal-only posture as the PR-hygiene gate). It verifies every non-merge
-# commit in the PR carries a `Signed-off-by:` trailer matching its author, i.e. the
-# author asserted the DCO in ./DCO. Fail-closed: any unsigned commit reds the check.
+# The Developer Certificate of Origin gate.
+#
+# It reads every non-merge commit in a pull request and requires a
+# `Signed-off-by:` trailer matching that commit's own author. The trailer is the
+# author asserting the Developer Certificate of Origin, version 1.1, published
+# at developercertificate.org. That text is the whole of what is asserted, and
+# this repository keeps no copy of it and no contributor document beside it yet.
+# Both are #31, and until they land the message this job prints on a failure
+# points at the published text rather than at a path in this tree.
+#
+# It is first-party and self-contained. No sign-off application and no
+# third-party action is in the merge path, which is the posture the hygiene gate
+# beside it also takes.
+#
+# It fails closed. One commit without a matching trailer reds the check.
+#
+# What a sign-off asserts includes a right to submit the work under the
+# project's license, and this repository has no license file, so today the
+# assertion names nothing. That is entry 1 of #34 and is not settled here.
 name: DCO
 
 on:
@@ -74,7 +87,7 @@ jobs:
             fi
           done
           if [ "$fail" -ne 0 ]; then
-            echo "::error::One or more commits lack a DCO Signed-off-by matching the author. Sign your work with 'git commit -s' (or add it retroactively with 'git rebase --signoff <base>'). See CONTRIBUTING.md and ./DCO."
+            echo "::error::One or more commits lack a DCO Signed-off-by matching the author. Sign your work with 'git commit -s', or add the trailer to commits that already exist with 'git rebase --signoff <base>'. The text being asserted is the Developer Certificate of Origin 1.1 at https://developercertificate.org ; a copy of it in this repository is #31."
             exit 1
           fi
           echo "All commits carry a matching DCO sign-off."
