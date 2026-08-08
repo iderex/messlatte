@@ -310,3 +310,111 @@ fn a_normal_dependency_is_read_by_the_same_derivation() {
         [("m".to_string(), "g".to_string())].into_iter().collect()
     );
 }
+
+// What the guard says, as opposed to what it decides (#99).
+//
+// Every case above compares refusal values, and a value carries no sentence. The
+// string is what a person meets when the gate goes red, and a message naming the
+// wrong field sends that person to the wrong file while every case above stays
+// green. So each arm below is rendered from a refusal the guard actually
+// produced, and the assertion is on the whole sentence rather than on a fragment
+// of it: a fragment passes for an arm that dropped the rest of the clause.
+//
+// The fixture crates are single letters and the roles are words, which is what
+// makes a swapped field visible. `m` and `g` in a sentence that has both of them
+// twice cannot be transposed without changing the string.
+
+/// The one refusal `refusals` holds, rendered. More than one means the case set
+/// up something it did not mean to.
+fn only_message(refusals: &[Refusal]) -> String {
+    assert_eq!(refusals.len(), 1, "{refusals:?}");
+    refusals[0].to_string()
+}
+
+#[test]
+fn the_message_for_an_undeclared_workspace_member_names_the_member() {
+    let mut graph = graph(&[]);
+    graph.members.insert("x".to_string());
+
+    assert_eq!(
+        only_message(&refuse(&declaration_from_str(FIXTURE).unwrap(), &graph)),
+        "workspace member x carries no role in the layout declaration"
+    );
+}
+
+#[test]
+fn the_message_for_a_declared_crate_that_is_absent_says_which_side_is_missing() {
+    // The near-miss is this arm and the one above swapped. Both are about one
+    // crate name and a declaration, and a reader who is told the wrong direction
+    // edits the wrong file: one is repaired by adding a line to `layout.toml`,
+    // the other by removing one. The two sentences are asserted in full so that
+    // an arm rendering its neighbour's words fails here.
+    let mut graph = graph(&[]);
+    graph.members.remove("p");
+
+    assert_eq!(
+        only_message(&refuse(&declaration_from_str(FIXTURE).unwrap(), &graph)),
+        "the layout declaration places p, which is not a workspace member"
+    );
+}
+
+#[test]
+fn the_message_for_an_unknown_role_names_the_crate_and_the_role() {
+    let declaration = declaration_from_str(&FIXTURE.replace("m = \"method\"", "m = \"methods\""))
+        .expect("the fixture parses");
+    let refusals = refuse(&declaration, &graph(&[]));
+
+    let messages: Vec<String> = refusals.iter().map(ToString::to_string).collect();
+    assert_eq!(
+        messages,
+        vec![
+            "m is placed in role methods, which the layout declaration does not define".to_string(),
+            "b in role binary depends on m in role methods, and binary may not depend on methods"
+                .to_string(),
+        ]
+    );
+}
+
+#[test]
+fn the_message_for_a_forbidden_edge_names_both_ends_and_both_roles() {
+    // Every field of this arm appears in the sentence, and two of them appear
+    // twice. A rendering that reads the dependency backwards, which is the arm's
+    // one plausible mistake, cannot produce this string.
+    assert_eq!(
+        only_message(&check(&[("m", "g")])),
+        "m in role method depends on g in role generator, and method may not depend on generator"
+    );
+}
+
+#[test]
+fn the_two_directions_of_a_lock_disagreement_name_different_files() {
+    // The arm the issue names as the one to watch. Its two directions differ by
+    // which file is named and by nothing else, so a copied-and-not-edited second
+    // direction is invisible to every case that compares values: `Side` still
+    // distinguishes them and the string no longer does. Both sentences are
+    // asserted, and then asserted to differ, because two identical strings would
+    // satisfy either assertion alone.
+    let mut in_the_manifests = graph(&[]);
+    in_the_manifests
+        .manifest_edges
+        .insert(("b".to_string(), "p".to_string()));
+
+    let mut in_the_lock = graph(&[]);
+    in_the_lock
+        .lock_edges
+        .insert(("b".to_string(), "p".to_string()));
+
+    let declaration = declaration_from_str(FIXTURE).unwrap();
+    let from_the_manifests = only_message(&refuse(&declaration, &in_the_manifests));
+    let from_the_lock = only_message(&refuse(&declaration, &in_the_lock));
+
+    assert_eq!(
+        from_the_manifests,
+        "b depends on p in the manifests and not in the lock file"
+    );
+    assert_eq!(
+        from_the_lock,
+        "b depends on p in the lock file and not in the manifests"
+    );
+    assert_ne!(from_the_manifests, from_the_lock);
+}
