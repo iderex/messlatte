@@ -47,11 +47,3 @@ fn trailing_blank_lines_are_not_paths() {
         Ok(vec!["a.rs".to_string()])
     );
 }
-
-#[test]
-fn a_seeded_default_suite_case_that_binds_a_socket() {
-    // Removed in the next commit. It exists to make the check named test go
-    // red, so that the run rather than an argument is what says the gate
-    // reddens on a default-suite case doing what the default suite forbids.
-    let _ = std::net::TcpListener::bind("127.0.0.1:0");
-}
