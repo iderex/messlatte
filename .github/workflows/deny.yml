@@ -1,0 +1,75 @@
+# The advisory and license policy gate (#24).
+#
+# It refuses a dependency with a known advisory, a license outside the allowed
+# set, more than one version of one crate in the graph, or a source outside the
+# declared registries. What each of those means and why it is refused is in
+# `deny.toml` beside the rule, so this file holds how the check is run and not
+# what it decides.
+#
+# The tool is installed at a pinned version rather than taken from an action.
+# The version is what decides the verdict, so it belongs in a line a reader can
+# see, not inside an image built by something else, and nothing third-party
+# enters the merge path to get it. The cost is a compile of the tool on every
+# run, which is the honest price of both properties and is paid here rather than
+# hidden.
+#
+# One of the four legs is not a function of the commit. The advisory check reads
+# the RustSec database over the network at run time, so a green run today and a
+# red run tomorrow on the same tree is the check working rather than flaking.
+# The other three read only the tree and the lockfile.
+#
+# This gate overlaps `dependency-review`, which also fails on a known
+# vulnerability, and the overlap is not redundant. That one judges what a pull
+# request adds or upgrades, against the diff. This one judges the whole resolved
+# graph, so an advisory published against a dependency nobody touched is caught
+# here and is invisible there.
+name: Dependencies
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+# Deny by default; the job takes only what it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deny:
+    name: deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      # The verdict comes from this version. Moving it is a change to what the
+      # gate decides and belongs in a commit that says so.
+      CARGO_DENY_VERSION: "0.18.6"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so the token is not persisted in .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain this run resolved
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Install the checker at the pinned version
+        # `--locked` builds it against the lockfile its own release was cut
+        # with, so the tool this gate runs is the tool that was published rather
+        # than whatever its dependency set resolves to today.
+        run: cargo install cargo-deny --locked --version "$CARGO_DENY_VERSION"
+
+      - name: Check advisories, licenses, bans and sources
+        # No leg is named on the command line, so the run is every check
+        # `deny.toml` configures. Naming them here would be a second list of
+        # what the gate does, and the one that drifts is always the copy.
+        run: |
+          cargo deny --version
+          cargo deny --all-features check
