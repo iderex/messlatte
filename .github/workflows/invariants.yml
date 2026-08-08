@@ -1,0 +1,133 @@
+# The greppable invariants gate (#26).
+#
+# This repository's text-level invariants, one rule per invariant, each a token
+# pattern rather than a language parser. That keeps the check deterministic and
+# cheap, and it is also the bound on what a rule can mean: a pattern reads
+# characters, so a rule here catches the shape of a violation and never its
+# intent.
+#
+# The name matches the check of the same name on iderex/jellyfin-plugin-sso,
+# deliberately, so one habit covers both.
+#
+# Two properties keep a rule useful, and a rule that lacks either is not
+# shipped. It produces no findings on the tree as it stands, so it is not
+# carried red from the day it lands. And it fires on a regression, watched
+# rather than argued, which for this repository means a seeded commit that
+# turns the check red and a run quoted where the change is argued.
+#
+# The second property is what decides how many rules are here. #26 names five
+# invariants this plan owes, and four of them have no subject in this tree yet:
+# there is no constant table, no output template, no output writer and no method
+# with a stopping rule, so a rule about any of them could produce no findings
+# for the reason that it has nothing to read, and could never be seen firing.
+# That is a rule nobody could trust, so those four are named in the run instead,
+# with what would give each one a subject. The first step below prints them
+# every time, so a green run cannot be read as this repository's invariants all
+# being enforced.
+name: Invariants
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+# Deny by default; the job takes only what it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invariants:
+    name: Enforce greppable invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so the token is not persisted in .git/config.
+          persist-credentials: false
+
+      - name: What this check covers, and what it does not
+        # Printed first and unconditionally, so it is in the log of every run
+        # including a red one. A run that covered one invariant out of five must
+        # not be readable as one that covered five and found nothing.
+        run: |
+          echo "Enforced as rules below, one step each:"
+          echo "  no-generator-in-a-method  a method crate does not name the generator crate"
+          echo
+          echo "Owed by #26 and NOT RUN, because the text a rule would read does not"
+          echo "exist in this tree yet. Each is listed with what gives it a subject."
+          echo "  no-bare-constant-in-physics   no bare floating-point constant in the"
+          echo "                                physics crates outside the constant table."
+          echo "                                There is no constant table and the physics"
+          echo "                                crates are empty. Subject arrives with #13."
+          echo "  no-posterior-in-output        no use of the words posterior or confidence"
+          echo "                                interval in an output template. There is no"
+          echo "                                output template. The words appear in prose"
+          echo "                                here on purpose, saying why they are wrong,"
+          echo "                                so a tree-wide rule would refuse the"
+          echo "                                explanation. Subject arrives with #11 and #77."
+          echo "  no-clock-or-host-in-output    no wall-clock or host name in a default"
+          echo "                                output writer. No writer exists. Subject"
+          echo "                                arrives with #78, and the rule it enforces"
+          echo "                                is #16."
+          echo "  no-method-without-a-stop      no direct construction of a method without a"
+          echo "                                stopping rule. No method is constructible."
+          echo "                                Subject arrives with #54 and #12."
+          echo
+          echo "These four are not passing. They were not run."
+
+      - name: "Rule no-generator-in-a-method: a method crate does not name the generator"
+        # #5 and layout.toml. A method whose trial trace comes from the routine
+        # that produced the data is fitting a model that is exactly true,
+        # discretisation included, so its error measures the search and not the
+        # physics, and every distortion this repository exists to expose leaves
+        # the numbers.
+        #
+        # The graph rule in `crates/layout` already refuses this edge, and this
+        # is the text rule beside it that #26 asks for. They are not redundant.
+        # The graph rule reads the manifests, so it refuses a declared
+        # dependency; this one reads every tracked byte under the method crates,
+        # so it also catches the name in a path dependency somebody added
+        # without declaring a role, in a build script, in a comment proposing
+        # the import, and in a test that reaches for it.
+        #
+        # The pattern spans both spellings because a manifest writes the crate
+        # with a hyphen and Rust writes it with an underscore.
+        run: |
+          # git grep: 0 is a match, 1 is clean, anything else is a tooling
+          # error. Fail closed on the third case rather than reading a broken
+          # scanner as a clean tree.
+          rc=0
+          git grep -nIE 'messlatte[-_]generator' -- crates/methods/ || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::A method crate names the generator crate. A method that can reach the forward model which produced the data is fitting a model that is exactly true, so its error measures the search rather than the physics. See #5 and layout.toml."
+              exit 1
+              ;;
+            1)
+              echo "no findings: no method crate names the generator crate"
+              ;;
+            *)
+              echo "::error::the scanner failed with git grep exit $rc, so this rule did not judge the tree. Failing closed."
+              exit 1
+              ;;
+          esac
+
+      - name: The tree this ran against is not empty
+        # Without this, every rule above would pass just as happily against a
+        # checkout git tracks nothing in, and a green run would mean no rule
+        # ever had a subject. The same case is already made for the tracked-tree
+        # guard in crates/tree.
+        run: |
+          methods="$(git ls-files -- crates/methods/ | wc -l)"
+          echo "git tracks $methods files under crates/methods/"
+          if [ "$methods" -lt 1 ]; then
+            echo "::error::git tracks no file under crates/methods/, so the rule above had nothing to judge."
+            exit 1
+          fi
