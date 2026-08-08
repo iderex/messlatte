@@ -1,0 +1,17 @@
+[package]
+name = "messlatte-suites"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# The inventory target carries no harness. The test harness captures what a
+# passing case prints, so a statement the run is supposed to make would appear
+# only when something failed. Without it the target is an ordinary program and
+# `cargo test` shows its output on a green run as well as a red one.
+[[test]]
+name = "inventory"
+harness = false
+
+[lints]
+workspace = true
