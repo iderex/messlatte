@@ -50,8 +50,28 @@ publish = false
 # (#21).
 #
 # Each crate opts in with `lints.workspace = true`, so a new crate that forgets
-# the line is linted at the default level rather than at this one. That is a
-# gap in the mechanism and it is named here rather than left implicit.
+# the line is linted at the default level rather than at this one. That was a
+# gap named here and left open. It is now refused:
+# `crates/tree/tests/workspace_lints.rs` reads every member manifest out of the
+# index and fails on one that does not take this set, which is what makes the
+# word workspace-wide below true rather than true of the crates that remembered.
+# The unsafe-code posture (#83). Forbid rather than deny, because deny can be
+# turned off by an attribute at the site that wants it and forbid cannot, and
+# the thing being refused here is exactly a site deciding for itself. The
+# allowance list is the set of files carrying an exception to this, and it is
+# empty: there is no `#[allow(unsafe_code)]` anywhere in this workspace and no
+# crate opting out of the workspace lints.
+#
+#     git grep -n 'unsafe' -- '*.rs'
+#     (no match, exit 1)
+#
+# What this buys is narrow and worth stating narrowly. It refuses unsafe code
+# written here. It says nothing about unsafe code inside a dependency, which is
+# most of the unsafe code any Rust binary actually executes, and this workspace
+# has no route that audits that.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
 [workspace.lints.clippy]
 # Everything clippy turns on by default is an error rather than a warning. A
 # warning in a gate that denies warnings is the same thing with an extra step,
@@ -75,6 +95,58 @@ cast_precision_loss = "deny"
 # say so at the site rather than inherit silence from here.
 float_cmp = "deny"
 
+# The security-relevant lints (#83). The target board runs a semantic analyser
+# with a security query suite, that analyser does not support this language, and
+# these are part of the set that stands in its place rather than a substitute
+# for it. What the set does not cover is written in #83 and is not softened
+# here.
+#
+# Leaking a value that owns something. In this workspace what a value owns is a
+# file handle or a buffer read from a file somebody else wrote.
+mem_forget = "deny"
+# A float literal written with more digits than a double can hold. It reads as
+# the precision somebody intended and is not, which in a constant table is the
+# mistake that produces a plausible number.
+lossy_float_literal = "deny"
+# A function item cast to a number. There is no reason to do it here and it is
+# how a pointer becomes an integer without saying so.
+fn_to_numeric_cast_any = "deny"
+# The pointer casts. Nothing in this workspace holds a raw pointer today, which
+# is what makes these cheap to deny now and expensive to add later.
+ptr_as_ptr = "deny"
+cast_ptr_alignment = "deny"
+# A dependency pinned to nothing. A version requirement of `*` takes whatever
+# the registry serves on the day of the build, which is a supply-chain decision
+# made by absence.
+wildcard_dependencies = "deny"
+# An `allow` with no reason written beside it. Every lint above can be turned
+# off at a site with one attribute, and the attribute that carries no reason is
+# how a denied lint stops being denied without anybody deciding to.
+allow_attributes_without_reason = "deny"
+
 # Allowed lints go below this line, one per entry, each with the reason it is
 # allowed written beside it. There are none today. An entry with no reason is
 # what the review is for.
+
+# What is NOT denied here, named rather than left as a silence (#83). Each of
+# these four is a lint whose subject is exactly the crafted-input class this
+# repository cares about, and each fires on the tree as it stands, so denying it
+# today would mean either a red gate or a scattering of site-level allows that
+# amounts to the same thing with more words.
+#
+#   indexing_slicing        an index or a range taken on a slice. The NPY and
+#                           JSON readers bounds-check first and then index, and
+#                           the lint is syntactic, so it does not tell the two
+#                           apart.
+#   arithmetic_side_effects an add or a multiply that can overflow. The readers
+#                           already use checked arithmetic where a number comes
+#                           out of a file; the lint also reaches every ordinary
+#                           index computation.
+#   unwrap_used             a panic where an error was available. The test
+#                           targets are full of them legitimately, and the lint
+#                           set here reaches every target.
+#   integer_division        a division that truncates.
+#
+# Turning any of them on is a change to the code and not a change to this file,
+# and it is worth doing per crate once the readers are the only thing under it.
+# Nothing here claims the analysis is equivalent to the target's.
