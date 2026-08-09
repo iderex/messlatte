@@ -80,13 +80,18 @@ fn target() -> Target {
 /// photoelectron energy the pulse is centred on is therefore the carrier less
 /// the ionisation potential.
 fn gaussian_pulse(samples: usize) -> Pulse {
-    let span = 6.0 * WIDTH;
+    gaussian_pulse_of(samples, WIDTH)
+}
+
+/// The same, at a width of the caller's choosing.
+fn gaussian_pulse_of(samples: usize, width: f64) -> Pulse {
+    let span = 6.0 * width;
     let step = 2.0 * span / whole(samples - 1);
     let mut real = Vec::with_capacity(samples);
     let mut imaginary = Vec::with_capacity(samples);
     for index in 0..samples {
         let time = -span + step * whole(index);
-        let envelope = (-time * time / (2.0 * WIDTH * WIDTH)).exp();
+        let envelope = (-time * time / (2.0 * width * width)).exp();
         real.push(envelope * (CARRIER * time).cos());
         imaginary.push(-envelope * (CARRIER * time).sin());
     }
@@ -230,57 +235,74 @@ fn with_the_field_off_the_trace_is_the_pulse_spectrum_shifted_by_the_ionisation_
 }
 
 #[test]
-fn the_streaking_field_reaches_the_trace_and_moves_the_momentum_with_the_potential() {
-    // Two delays a half period apart, where the potential of a pulse with a
-    // carrier-envelope phase of zero has equal size and opposite sign. The
-    // shift of the trace's first moment away from the field-free one has to
-    // have opposite signs at the two, whatever the sign convention relating the
-    // two is. Which of the two signs it takes is #46's fourth limit and is NOT
-    // asserted here.
-    let field = StreakingField::new(0.08, 0.05, 4.0, 0.0).expect("a field");
+fn the_first_moment_follows_minus_the_vector_potential() {
+    // The streaking relation. An electron born at t with speed v0 leaves with a
+    // canonical momentum of v0 - A(t), so the first moment of the trace in
+    // momentum has to move against the potential and not with it. Which of the
+    // two it does is the whole content of the sign the accumulated phase enters
+    // with, and it is #123: the operator was first written with the other one,
+    // and the trace still looked like a streaking trace.
+    //
+    // The two delays are half a period apart, where the potential of a pulse
+    // with a carrier-envelope phase of zero is equal and opposite. Their
+    // DIFFERENCE is what is compared, because the squared-potential term
+    // contributes a shift that does not depend on the momentum and is the same
+    // at both, so it cancels there and does not in either one alone. What is
+    // left is the relation above.
+    //
+    // The pulse is short against the streaking period, which is what the
+    // streaking picture describes. The long fixture used elsewhere in this file
+    // averages the potential over a good fraction of a cycle and is not one.
+    let field = StreakingField::new(0.15, 0.05, 6.0, 0.0).expect("a field");
     let mut streaking = Streaking::new(field);
-    streaking.intervals_per_cycle = 128;
-    let grid = momenta(41, 2.0);
+    streaking.intervals_per_cycle = 256;
+    let grid = momenta(201, 1.2);
     let half = field.period() / 2.0;
 
-    let first_moment = |delays: Vec<f64>, streaking: Streaking| {
+    let moments = |streaking: Streaking| {
         let trace = operator::trace(
             "fixture-streaked",
-            &gaussian_pulse(401),
+            &gaussian_pulse_of(801, 4.0),
             streaking,
             &target(),
             &Grids {
                 momenta: grid.clone(),
-                delays,
+                delays: vec![0.0, half],
             },
         )
         .expect("the streaked case is a trace");
-        let mut weight = 0.0;
-        let mut total = 0.0;
-        for (index, momentum) in grid.iter().enumerate() {
-            let cell = trace.values.values[index * trace.values.columns];
-            weight += cell;
-            total += cell * momentum;
+        let mut found = Vec::new();
+        for column in 0..trace.values.columns {
+            let mut weight = 0.0;
+            let mut total = 0.0;
+            for (index, momentum) in grid.iter().enumerate() {
+                let cell = trace.values.values[index * trace.values.columns + column];
+                weight += cell;
+                total += cell * momentum;
+            }
+            found.push(total / weight);
         }
-        total / weight
+        found
     };
 
-    let quiet = first_moment(vec![0.0], no_field());
-    let at_peak = first_moment(vec![0.0], streaking);
-    let at_trough = first_moment(vec![half], streaking);
+    let streaked = moments(streaking);
+    let quiet = moments(no_field());
 
+    // The field-free case is the same at both delays, which is the other file's
+    // case restated here so that what follows is a difference of differences
+    // rather than a difference against a number this case assumes.
+    close(quiet[0], quiet[1], 1e-12);
+
+    let measured = streaked[0] - streaked[1];
+    let wanted = -(field.potential(0.0) - field.potential(half));
     assert!(
-        (at_peak - quiet).abs() > 1e-3,
-        "the field moved the first moment by {:e}, which is nothing",
-        at_peak - quiet
+        measured < 0.0,
+        "the first moment moved with the potential rather than against it: {measured:e}"
     );
-    assert!(
-        (at_peak - quiet) * (at_trough - quiet) < 0.0,
-        "the shifts at the potential's peak and trough are {:e} and {:e}, and a potential that \
-         reverses has to reverse them",
-        at_peak - quiet,
-        at_trough - quiet
-    );
+    // Five parts in a hundred. The residual is the pulse's own width, which
+    // samples the potential over a finite stretch of a cycle rather than at one
+    // instant, and it shrinks with the pulse rather than with the quadrature.
+    close(measured, wanted, 5e-2);
 }
 
 #[test]

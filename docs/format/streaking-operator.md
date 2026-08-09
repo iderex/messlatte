@@ -29,7 +29,7 @@ The streaking operator, in atomic units.
                     d_amp(  e(s + tau) )
                   * exp( i * d_phase( e(s + tau) ) )
                   * E(s)
-                  * exp( i * phi(p, s + tau) )
+                  * exp( -i * phi(p, s + tau) )
                   * exp( i * ( p^2 / 2 + Ip ) * s )
 
     e(t)      = ( p + A(t) )^2 / 2
@@ -43,7 +43,11 @@ Symbols.
     E(s)      the complex extreme-ultraviolet field on that grid
     A(t)      the streaking field's vector potential, docs/format/streaking-field.md
     phi(p, t) the phase accumulated in the streaking field from t onwards, the
-              same document
+              same document. It enters with a minus beside a drift term that
+              enters with a plus, which is what makes the exponent stationary
+              where the instantaneous kinetic energy is the photon energy less
+              the ionisation potential. Written with a plus, the trace streaks
+              the wrong way and looks right.
     e(t)      the kinetic energy of the shifted momentum
     d_amp     the target's transition amplitude at that energy, docs/format/dipole.md
     d_phase   its phase at that energy, in this repository's convention
@@ -84,6 +88,18 @@ samples. Written the other way round, with the integral on a fixed time grid and
 the pulse shifted onto it, every delay that is not a multiple of the step would
 carry an interpolation error that varies along the delay axis, which is
 indistinguishable in a trace from a real effect of the delay.
+
+**The accumulated phase enters with a minus.** `docs/format/streaking-field.md`
+defines that phase as an integral and leaves the sign it enters with to this
+document, which is the right place for it: the integral is a property of the
+field and the sign is a property of the amplitude. The minus is what makes the
+derivative of the exponent equal to `( p + A(t) )^2 / 2 + Ip`, so the exponent is
+stationary where the instantaneous kinetic energy is the photon energy less the
+ionisation potential, which gives an electron born at `t` with speed `v0` a final
+momentum of `v0 - A(t)`. Written with a plus, the derivative is
+`( p - A(t) )^2 / 2 + Ip - A(t)^2`, which is stationary nowhere a streaking
+picture describes, and the trace streaks the other way while still looking like a
+streaking trace. That is #123, and it is how this operator was first written.
 
 **The momentum enters the phase as itself.** It is not expanded about a central
 momentum. That approximation is the one whose cost this repository exists to

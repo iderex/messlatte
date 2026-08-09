@@ -106,18 +106,19 @@ written in this convention and says so, because a writer that re-emitted the
 other spelling would be claiming to have preserved a meaning it has already
 changed.
 
-**This repository's convention is `exp(+i phase)`**, which is the sign that
-makes the dipole phase enter the photoelectron amplitude the same way the phase
-accumulated in the streaking field does. That accumulated phase is
-`docs/format/streaking-field.md` and #43.
+**This repository's convention is `exp(+i phase)`**, which is the sign the
+matrix element carries when it appears in the photoelectron amplitude as itself.
+The amplitude is written in `docs/format/streaking-operator.md`, and the dipole
+sits in it unconjugated, so its phase enters with a plus beside the drift term
+`exp( +i * ( p^2 / 2 + Ip ) * s )`.
 
-The residual there is worth stating rather than leaving to be discovered. The
-sign with which the accumulated phase enters the amplitude is fixed by the
-streaking operator, which is #42 and is open. If that operator turns out to be
-written with the opposite sign, then the spelling above and the accumulated
-phase's spelling move together, because the rule here is that the two enter with
-the same sign. The relative sign between them is the only thing a table can be
-wrong about, and it is fixed by this document today.
+An earlier version of this passage gave a different reason: that the dipole
+phase enters the amplitude the same way the phase accumulated in the streaking
+field does. That is not the case. The accumulated phase enters with a minus,
+which is #123, and the dipole phase does not follow it. The conclusion above did
+not move and the argument for it did, so the sentence is corrected here rather
+than left to be read back as an argument the next time either sign is
+questioned.
 
 Why it is worth this much text. A sign error in a dipole phase looks exactly
 like a chirp in the pulse. It moves no amplitude, it reddens no test that reads

@@ -209,7 +209,7 @@ The streaking operator, in atomic units.
                     d_amp(  e(s + tau) )
                   * exp( i * d_phase( e(s + tau) ) )
                   * E(s)
-                  * exp( i * phi(p, s + tau) )
+                  * exp( -i * phi(p, s + tau) )
                   * exp( i * ( p^2 / 2 + Ip ) * s )
 
     e(t)      = ( p + A(t) )^2 / 2
@@ -223,7 +223,11 @@ Symbols.
     E(s)      the complex extreme-ultraviolet field on that grid
     A(t)      the streaking field's vector potential, docs/format/streaking-field.md
     phi(p, t) the phase accumulated in the streaking field from t onwards, the
-              same document
+              same document. It enters with a minus beside a drift term that
+              enters with a plus, which is what makes the exponent stationary
+              where the instantaneous kinetic energy is the photon energy less
+              the ionisation potential. Written with a plus, the trace streaks
+              the wrong way and looks right.
     e(t)      the kinetic energy of the shifted momentum
     d_amp     the target's transition amplitude at that energy, docs/format/dipole.md
     d_phase   its phase at that energy, in this repository's convention
@@ -315,9 +319,7 @@ pub fn trace(
                     .at(Energy::from_hartree(energy))
                     .map_err(|lookup| outside(*momentum, &lookup))?;
 
-                let angle = dipole.phase
-                    + momentum * displacement[at]
-                    + squared[at]
+                let angle = dipole.phase - momentum * displacement[at] - squared[at]
                     + drift * pulse.time(index);
                 let weight = simpson_weight(index, samples);
                 let scale = weight * dipole.amplitude;
