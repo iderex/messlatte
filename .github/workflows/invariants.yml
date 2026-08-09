@@ -16,14 +16,17 @@
 # turns the check red and a run quoted where the change is argued.
 #
 # The second property is what decides how many rules are here. #26 names five
-# invariants this plan owes, and four of them have no subject in this tree yet:
-# there is no constant table, no output template, no output writer and no method
-# with a stopping rule, so a rule about any of them could produce no findings
-# for the reason that it has nothing to read, and could never be seen firing.
-# That is a rule nobody could trust, so those four are named in the run instead,
-# with what would give each one a subject. The first step below prints them
-# every time, so a green run cannot be read as this repository's invariants all
-# being enforced.
+# invariants this plan owes, and three of them have no subject in this tree yet:
+# there is no output template, no output writer and no method with a stopping
+# rule, so a rule about any of them could produce no findings for the reason
+# that it has nothing to read, and could never be seen firing. That is a rule
+# nobody could trust, so those three are named in the run instead, with what
+# would give each one a subject. The first step below prints them every time, so
+# a green run cannot be read as this repository's invariants all being enforced.
+#
+# The fourth was in that list until #13 landed the constant table and the
+# conversion layer, which is what gave `no-bare-constant-in-physics` something to
+# read.
 name: Invariants
 
 on:
@@ -58,14 +61,12 @@ jobs:
         # not be readable as one that covered five and found nothing.
         run: |
           echo "Enforced as rules below, one step each:"
-          echo "  no-generator-in-a-method  a method crate does not name the generator crate"
+          echo "  no-generator-in-a-method      a method crate does not name the generator crate"
+          echo "  no-bare-constant-in-physics   no floating-point literal in the source of the"
+          echo "                                physics crates outside the constant table"
           echo
           echo "Owed by #26 and NOT RUN, because the text a rule would read does not"
           echo "exist in this tree yet. Each is listed with what gives it a subject."
-          echo "  no-bare-constant-in-physics   no bare floating-point constant in the"
-          echo "                                physics crates outside the constant table."
-          echo "                                There is no constant table and the physics"
-          echo "                                crates are empty. Subject arrives with #13."
           echo "  no-posterior-in-output        no use of the words posterior or confidence"
           echo "                                interval in an output template. There is no"
           echo "                                output template. The words appear in prose"
@@ -80,7 +81,7 @@ jobs:
           echo "                                stopping rule. No method is constructible."
           echo "                                Subject arrives with #54 and #12."
           echo
-          echo "These four are not passing. They were not run."
+          echo "These three are not passing. They were not run."
 
       - name: "Rule no-generator-in-a-method: a method crate does not name the generator"
         # #5 and layout.toml. A method whose trial trace comes from the routine
@@ -119,6 +120,57 @@ jobs:
               ;;
           esac
 
+      - name: "Rule no-bare-constant-in-physics: a physical constant lives in the constant table"
+        # #13. This field publishes in attoseconds and electronvolts while the
+        # equations are written in atomic units, so a conversion factor written
+        # at the site that wants it is copied within a year, the copy carries a
+        # typo or a different revision of the same measurement, and the two
+        # disagree by an amount no plot shows. The table in
+        # crates/units/src/constants.rs is the one place such a number lives,
+        # with a value, an uncertainty and a source per entry.
+        #
+        # The subject is the source of the physics crates, and the three bounds
+        # on it are worth stating because each is a place this rule does not
+        # reach.
+        #
+        # It reads `src/` and not the test targets. A tolerance, a grid fraction
+        # and an expected value are ordinary in a test and are not physical
+        # constants, and a rule that refused them would be turned off within a
+        # week, which is worse than a rule with a stated edge.
+        #
+        # It reads characters, so it does not tell a literal in code from one in
+        # a comment. A number in prose inside a physics source file is written in
+        # words or moved to the table. That is the cost of a pattern rule and it
+        # is paid deliberately.
+        #
+        # And it refuses every floating-point literal rather than trying to
+        # recognise a physical one. Nothing in a pattern separates a measured
+        # constant from an exact definitional number, so the answer to a physics
+        # path that needs a pure number is an entry in the table with its source
+        # given as the definition, or an integer.
+        run: |
+          # Same three-way exit handling as the rule above: 0 is a match, 1 is
+          # clean, anything else is a scanner that did not judge the tree.
+          rc=0
+          git grep -nIE '[0-9]\.[0-9]|[0-9][eE][-+]?[0-9]' -- \
+            'crates/units/src/*.rs' \
+            'crates/generator/src/*.rs' \
+            'crates/methods/*/src/*.rs' \
+            ':(exclude)crates/units/src/constants.rs' || rc=$?
+          case "$rc" in
+            0)
+              echo "::error::A floating-point literal sits in the source of a physics crate outside the constant table. One place holds a physical constant, with its uncertainty and its source, and a factor written at its call site is the copy that drifts. See #13 and crates/units/src/constants.rs."
+              exit 1
+              ;;
+            1)
+              echo "no findings: no floating-point literal in the physics crates outside the constant table"
+              ;;
+            *)
+              echo "::error::the scanner failed with git grep exit $rc, so this rule did not judge the tree. Failing closed."
+              exit 1
+              ;;
+          esac
+
       - name: The tree this ran against is not empty
         # Without this, every rule above would pass just as happily against a
         # checkout git tracks nothing in, and a green run would mean no rule
@@ -129,5 +181,21 @@ jobs:
           echo "git tracks $methods files under crates/methods/"
           if [ "$methods" -lt 1 ]; then
             echo "::error::git tracks no file under crates/methods/, so the rule above had nothing to judge."
+            exit 1
+          fi
+
+          # The constant-table rule has two ways of reading a tree it cannot
+          # judge as a clean one, and both are absences rather than matches.
+          # With no source under the physics paths it scans nothing; with no
+          # table the exclusion covers nothing and the rule is a different rule
+          # from the one that was reviewed.
+          physics="$(git ls-files -- 'crates/units/src/*.rs' 'crates/generator/src/*.rs' 'crates/methods/*/src/*.rs' ':(exclude)crates/units/src/constants.rs' | wc -l)"
+          echo "git tracks $physics source files under the physics crates outside the constant table"
+          if [ "$physics" -lt 1 ]; then
+            echo "::error::git tracks no source file under the physics crates outside the constant table, so the constant rule had nothing to judge."
+            exit 1
+          fi
+          if ! git ls-files --error-unmatch crates/units/src/constants.rs > /dev/null 2>&1; then
+            echo "::error::git does not track crates/units/src/constants.rs, so the constant rule excluded a file that is not there and judged a tree with no table in it."
             exit 1
           fi
