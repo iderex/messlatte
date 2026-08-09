@@ -3,10 +3,11 @@
 # It reads every non-merge commit in a pull request and requires a
 # `Signed-off-by:` trailer matching that commit's own author. The trailer is the
 # author asserting the Developer Certificate of Origin, version 1.1, published
-# at developercertificate.org. That text is the whole of what is asserted, and
-# this repository keeps no copy of it and no contributor document beside it yet.
-# Both are #31, and until they land the message this job prints on a failure
-# points at the published text rather than at a path in this tree.
+# at developercertificate.org. That text is the whole of what is asserted, and a
+# verbatim copy of it is `DCO` at the root of this repository, with
+# `CONTRIBUTING.md` beside it saying how a contributor asserts it. Both landed
+# as #31, so the message this job prints on a failure names a path in this tree
+# as well as the published text.
 #
 # It is first-party and self-contained. No sign-off application and no
 # third-party action is in the merge path, which is the posture the hygiene gate
@@ -88,7 +89,7 @@ jobs:
             fi
           done
           if [ "$fail" -ne 0 ]; then
-            echo "::error::One or more commits lack a DCO Signed-off-by matching the author. Sign your work with 'git commit -s', or add the trailer to commits that already exist with 'git rebase --signoff <base>'. The text being asserted is the Developer Certificate of Origin 1.1 at https://developercertificate.org ; a copy of it in this repository is #31."
+            echo "::error::One or more commits lack a DCO Signed-off-by matching the author. Sign your work with 'git commit -s', or add the trailer to commits that already exist with 'git rebase --signoff <base>'. The text being asserted is the Developer Certificate of Origin 1.1, kept verbatim in ./DCO at the root of this repository and published at https://developercertificate.org ; ./CONTRIBUTING.md says what else a change is expected to carry."
             exit 1
           fi
           echo "All commits carry a matching DCO sign-off."
