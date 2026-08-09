@@ -32,10 +32,15 @@ Cargo.lock     text eol=lf
 *.gz   binary
 *.zip  binary
 
-# The trace file, the truth file and the case archive have no class here yet,
-# because their formats are not written. Whichever of #35, #36 and #37 lands
-# first declares its own class in this file, and a data format that arrives
-# without one is covered by the default above, which is a guess.
+# The trace file is classed by the two lines above rather than by a line of its
+# own. Its array is an `.npy`, which is binary and never converted, and its
+# header is a `.json`, which is text with a line feed and carries no carriage
+# return to lose. That is #35, and the format is `docs/format/trace.md`.
+#
+# The truth file and the case archive have no class here yet, because their
+# formats are not written. Whichever of #36 and #37 lands first declares its own
+# class in this file, and a data format that arrives without one is covered by
+# the default above, which is a guess.
 #
 # A fixture whose bytes are the point is not covered by any line in this file,
 # and cannot be. Attributes decide what happens to a file on the way into git,
