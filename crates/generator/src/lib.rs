@@ -7,9 +7,13 @@
 //! reasons are #5.
 //!
 //! [`field`] is the streaking field and the phase an electron accumulates in
-//! it, which is #43. The streaking operator that uses them is #42, the target's
-//! dipole is #44 and the perturbations are milestone 05. None of those is here.
+//! it, which is #43. [`operator`] is the model that turns them into a trace,
+//! which is #42, and the form it prints is `docs/format/streaking-operator.md`.
+//! The target's dipole is #44 and is a file format rather than code here. The
+//! perturbations are milestone 05 and are not here.
 
 pub mod field;
+pub mod operator;
 
-pub use field::{Refusal, SquaredTerm, StreakingField, VolkovPhase};
+pub use field::{SquaredTerm, StreakingField, VolkovPhase};
+pub use operator::{Grids, Pulse, Streaking, Target, PRINTED_FORM};
