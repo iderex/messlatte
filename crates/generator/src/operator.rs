@@ -268,6 +268,51 @@ fn index_as_f64(index: usize) -> f64 {
     f64::from(bounded)
 }
 
+/// The complex amplitude at every cell, before anything is divided by anything.
+///
+/// This is `a(p, tau)` in [`PRINTED_FORM`], and it is public because a trace is
+/// not enough to compare two implementations of that expression with. The trace
+/// is normalised by its own largest cell, so any error that multiplies the whole
+/// of it is removed before a reader sees it, and a comparison made after that
+/// division reports agreement for the reason that both sides were divided by
+/// their own largest cell. #46 measured one such error: the fours and the twos
+/// of the quadrature's weights swapped, which no case in this tree caught.
+///
+/// The cells are in row-major order over the momentum axis, so cell
+/// `(row, column)` is at `row * delays + column`, which is the order
+/// [`messlatte_formats::npy::Array`] holds.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Amplitudes {
+    /// How many momenta the grid carried.
+    pub momenta: usize,
+    /// How many delays it carried.
+    pub delays: usize,
+    /// The real part of the amplitude at each cell, in atomic units.
+    pub real: Vec<f64>,
+    /// The imaginary part, cell for cell.
+    pub imaginary: Vec<f64>,
+}
+
+impl Amplitudes {
+    /// The squared modulus at one cell, which is the trace's value before the
+    /// normalisation.
+    ///
+    /// # Panics
+    ///
+    /// The indices are outside the grid the amplitudes were built on.
+    #[must_use]
+    pub fn intensity(&self, momentum: usize, delay: usize) -> f64 {
+        assert!(
+            momentum < self.momenta && delay < self.delays,
+            "cell ({momentum}, {delay}) is outside a grid of {} by {}",
+            self.momenta,
+            self.delays
+        );
+        let at = momentum * self.delays + delay;
+        self.real[at] * self.real[at] + self.imaginary[at] * self.imaginary[at]
+    }
+}
+
 /// The trace this model produces.
 ///
 /// # Errors
@@ -281,6 +326,28 @@ pub fn trace(
     target: &Target,
     grids: &Grids,
 ) -> Result<Trace, Refusal> {
+    let found = amplitudes(pulse, streaking, target, grids)?;
+    let cells = found
+        .real
+        .iter()
+        .zip(&found.imaginary)
+        .map(|(real, imaginary)| real * real + imaginary * imaginary)
+        .collect();
+    build(case, cells, grids)
+}
+
+/// The amplitude the trace is the squared modulus of, on the same grids.
+///
+/// # Errors
+///
+/// The same set [`trace`] refuses, and for the same reasons: this is the half of
+/// it that evaluates the expression.
+pub fn amplitudes(
+    pulse: &Pulse,
+    streaking: Streaking,
+    target: &Target,
+    grids: &Grids,
+) -> Result<Amplitudes, Refusal> {
     check(pulse, target, grids)?;
 
     let phase = streaking.phase();
@@ -304,7 +371,9 @@ pub fn trace(
         }
     }
 
-    let mut cells = vec![zero(); grids.momenta.len() * grids.delays.len()];
+    let cells = grids.momenta.len() * grids.delays.len();
+    let mut real_part = vec![zero(); cells];
+    let mut imaginary_part = vec![zero(); cells];
     for (row, momentum) in grids.momenta.iter().enumerate() {
         let drift = momentum * momentum / two() + target.ionisation_potential;
         for (column, _) in grids.delays.iter().enumerate() {
@@ -329,12 +398,18 @@ pub fn trace(
                     * (pulse.real[index] * angle.sin() + pulse.imaginary[index] * angle.cos());
             }
             let step = pulse.step / three();
-            let (real, imaginary) = (real * step, imaginary * step);
-            cells[row * grids.delays.len() + column] = real * real + imaginary * imaginary;
+            let at = row * grids.delays.len() + column;
+            real_part[at] = real * step;
+            imaginary_part[at] = imaginary * step;
         }
     }
 
-    build(case, cells, grids)
+    Ok(Amplitudes {
+        momenta: grids.momenta.len(),
+        delays: grids.delays.len(),
+        real: real_part,
+        imaginary: imaginary_part,
+    })
 }
 
 /// The composite Simpson weight of one sample of an odd-length grid.
@@ -356,7 +431,12 @@ fn outside(momentum: f64, lookup: &Lookup) -> Refusal {
 }
 
 /// Everything that stops the operator before it evaluates anything.
-fn check(pulse: &Pulse, target: &Target, grids: &Grids) -> Result<(), Refusal> {
+///
+/// Shared with [`crate::quadrature`] rather than written twice. The two
+/// implementations are compared on their arithmetic, and two copies of a
+/// validation would let them disagree about which inputs they are comparable on
+/// without either being wrong.
+pub(crate) fn check(pulse: &Pulse, target: &Target, grids: &Grids) -> Result<(), Refusal> {
     let samples = pulse.samples();
     if samples != pulse.imaginary.len() {
         return Err(Refusal::PulseGrid {
