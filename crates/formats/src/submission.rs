@@ -679,7 +679,7 @@ fn check_grid(name: &str, axis: &Axis, admitted: &[&str], found: &mut Vec<Refusa
         // check above and not silently accepted here.
         let increases = matches!(
             axis.values[index].partial_cmp(&axis.values[index - 1]),
-            Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
+            Some(std::cmp::Ordering::Greater)
         );
         if !increases {
             found.push(Refusal::GridNotIncreasing {
