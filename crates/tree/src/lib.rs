@@ -113,6 +113,88 @@ pub fn takes_workspace_license(manifest: &str) -> bool {
     false
 }
 
+/// The constant a module declares to say which of this project's formats it
+/// reads and writes.
+///
+/// Joined at run time rather than written whole. This file is tracked under
+/// `crates/` like every other, and the case using it searches every tracked
+/// module for it, so a literal here would make this source the first thing that
+/// search found and the guard would be judging its own text.
+/// `crates/tree/tests/license_sentence.rs` splits a sentence for the same
+/// reason. Nothing else below is a search pattern, so nothing else is split.
+#[must_use]
+pub fn format_module_marker() -> String {
+    ["pub const ", "FORMAT"].concat()
+}
+
+/// Whether a module compares the major part of a version anywhere.
+///
+/// Both operators and both orders, because `a.major != b.major` and
+/// `b.major == a.major` are the same decision written by two people and neither
+/// is a mistake. What this refuses is the reader that compares the whole
+/// version, which refuses a higher minor version as well.
+///
+/// A comparison spelled some third way reads as absent here. That is a refusal
+/// of a correct module, which is a cost, and it is the direction this errs in on
+/// purpose: the failure is loud, it names what to write, and the alternative
+/// errs by passing a reader that judges the wrong thing.
+fn compares_a_major_part(source: &str) -> bool {
+    source.contains(".major != ") || source.contains(".major == ")
+}
+
+/// What a module is missing of the version rule (#41), sentence by sentence.
+///
+/// Every file this project writes carries a format version, a reader refuses a
+/// major version it does not know rather than guessing, and a higher minor
+/// version reads with the fields the reader does not recognise ignored. Three
+/// modules apply that rule today and each carries its own copy, so nothing
+/// connects them and a fourth format could land with the rule half applied while
+/// every case in the tree stayed green.
+///
+/// The condition is two-sided, in the way `license_sentence.rs` is two-sided. A
+/// module declaring no format name gets an empty answer, because it is not one
+/// of this project's formats and this says nothing about it. What is refused is
+/// the combination: a module declaring a format and then not carrying the rule.
+///
+/// It reads text rather than compiled code, and what that costs is worth stating
+/// rather than leaving to be discovered. A marker written in a comment satisfies
+/// it as readily as one written in code. A format naming its constant something
+/// else is invisible to it. And it judges that a major part is compared
+/// somewhere in the module rather than that the reader reaches that comparison,
+/// so a module carrying the comparison in a branch nothing runs passes. What it
+/// does catch is the part skipped outright, which is how a format arrives
+/// without the rule.
+#[must_use]
+pub fn version_rule_gaps(source: &str) -> Vec<String> {
+    if !source.contains(&format_module_marker()) {
+        return Vec::new();
+    }
+
+    let mut gaps = Vec::new();
+    if !source.contains("pub const VERSION") {
+        gaps.push(
+            "it declares a format and no `pub const VERSION`, so nothing says which version it \
+             writes"
+                .to_string(),
+        );
+    }
+    if !source.contains("UnknownMajorVersion") {
+        gaps.push(
+            "it carries no `UnknownMajorVersion`, so a reader has no refusal for a major version \
+             it does not know"
+                .to_string(),
+        );
+    }
+    if !compares_a_major_part(source) {
+        gaps.push(
+            "nothing in it compares a `.major` part, so what a reader refuses on is the whole \
+             version, and the higher minor version the rule says has to read is refused with it"
+                .to_string(),
+        );
+    }
+    gaps
+}
+
 /// The paths `git grep` reported, given its output and its exit status.
 ///
 /// `git grep -l` exits 0 when it found something, 1 when it found nothing, and
