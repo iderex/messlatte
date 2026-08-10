@@ -31,16 +31,24 @@ yanked = "deny"
 ignore = []
 
 [licenses]
-# Permissive only, and the reason is specific to this repository rather than a
-# preference. This repository has no license of its own yet, and choosing one is
-# entry 1 of #34. A dependency under a reciprocal license would settle part of
-# that question before the maintainer answers it, by making some of the options
-# in #34 unavailable. So the set below is the one that leaves every option in
-# #34 open, and it is widened by a decision written there rather than here.
+# Two permissive licenses and this repository's own, and the reason for the
+# third is what the second entry below is.
 #
-# The set is what the graph resolves to today and nothing beyond it:
+# The set was permissive-only while entry 1 of #34 was open, because a
+# dependency under a reciprocal license would have settled part of that question
+# before the maintainer answered it. That entry is answered: AGPL-3.0, taken on
+# 2026-08-08, and the widening of this set was taken in the same issue on
+# 2026-08-09 rather than here.
+#
+# What the widening costs is the reason it is a decision and not a formality: a
+# dependency under AGPL-3.0 now passes this gate too. For a repository under that
+# license the effect is compatible, and it is still a real extension of what may
+# be pulled in, chosen knowingly.
+#
+# The set is what the graph resolves to and nothing beyond it:
 #
 #     cargo deny --all-features list
+#     AGPL-3.0-or-later (10): the ten crates of this workspace
 #     Apache-2.0 (6): serde_core, serde_spanned, toml, toml_datetime, toml_parser, toml_writer
 #     MIT (7): the same six and winnow
 #
@@ -50,9 +58,14 @@ ignore = []
 # reddens this gate on the pull request that first pulls it in, and is added
 # here in that pull request with the crate that brought it. That is the intended
 # cost and not an oversight.
+#
+# The identifier for this workspace's own crates is read off the notice in
+# `LICENSE` rather than chosen, and the root manifest is where that reading is
+# written down.
 allow = [
     "MIT",
     "Apache-2.0",
+    "AGPL-3.0-or-later",
 ]
 # No per-crate exception. An exception is a crate allowed a license the set
 # refuses, and each would carry the crate, the license and the reason.
@@ -62,20 +75,17 @@ exceptions = []
 # rather than guessed at.
 confidence-threshold = 0.8
 
-# The crates in this workspace are not judged against the set above, and the
-# reason is the thing itself: none of them has a license, because this
-# repository has none. Every member carries `publish.workspace = true` against
-# a workspace `publish = false`, so nothing here is publishable and the check
-# below skips exactly the crates that are not.
+# A `[licenses.private]` block stood here and exempted the crates of this
+# workspace from the set above, because none of them carried a license while
+# this repository had none. Its own text named the condition that ended it, and
+# the condition fired: entry 1 of #34 was answered on 2026-08-08, every member
+# now takes `license.workspace = true`, and the block came out with them. So the
+# gate judges this workspace by the same rule it judges every dependency by, and
+# a member that stops carrying a license reddens it here as well as in
+# `crates/tree/tests/workspace_license.rs`.
 #
-# THIS IS A TEMPORARY ALLOWANCE AND THE CONDITION THAT ENDS IT IS ENTRY 1 OF
-# #34. On the day a license is chosen and a file lands, every member gets a
-# `license` field and this block comes out, at which point the gate judges this
-# workspace by the same rule it judges everything else by. Until then the gate
-# would refuse the whole tree for a decision that is not a dependency's fault
-# and not this file's to make.
-[licenses.private]
-ignore = true
+# Nothing replaces it. The default is that a package which is not published is
+# still judged, and that is now the behaviour this file wants.
 
 [bans]
 # Two versions of one crate in one binary can mean two implementations of one

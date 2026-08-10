@@ -10,13 +10,16 @@ See [NOTICE.md](NOTICE.md) for the intended-use notice.
 
 ## License
 
-AGPL-3.0, decided by the maintainer on 2026-08-08. It answers entry 1 of
-issue #34 and no other entry in that issue.
+The code is AGPL-3.0, decided by the maintainer on 2026-08-08. The documents
+are CC-BY-4.0, decided on 2026-08-09, and the generated case archive is
+CC0-1.0, decided on the same day. Which file is which is written in
+[NOTICE.md](NOTICE.md) and not repeated here.
 
-The full text is in [LICENSE](LICENSE). Read that file rather than this line,
-and if you want the platform's own reading of it, run:
+The full text of the code license is in [LICENSE](LICENSE). Read that file
+rather than this line, and if you want the platform's own reading of it, run:
 
     gh api repos/iderex/messlatte --jq '.license.spdx_id'
 
-The terms on the generated case archive are entry 2 of issue #34, and that
-entry is not answered here.
+That reading names the family and not the option. The notice this project
+attached to itself grants version 3 or later, which is why the manifests say
+`AGPL-3.0-or-later`.

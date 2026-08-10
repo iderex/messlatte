@@ -55,7 +55,9 @@ version 1.1. The text asserted is in [DCO](DCO) at the root of this repository,
 verbatim, and it is what the sign-off gate checks every non-merge commit in a
 pull request for. One commit without a matching trailer reds the check.
 
-The license a sign-off names is AGPL-3.0, in [LICENSE](LICENSE).
+The license a sign-off names is the one on the file being changed. For code
+that is AGPL-3.0, in [LICENSE](LICENSE); for a document it is CC-BY-4.0. Which
+file is which is in [NOTICE.md](NOTICE.md).
 
 ## What a submission file is
 

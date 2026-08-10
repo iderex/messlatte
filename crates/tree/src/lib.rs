@@ -81,6 +81,38 @@ pub fn takes_workspace_lints(manifest: &str) -> bool {
     false
 }
 
+/// Whether a member manifest takes the workspace license.
+///
+/// True only for `license.workspace = true` inside `[package]`. A member
+/// spelling the identifier out itself is a second place the answer lives, and
+/// the two copies come apart the first time one of them is edited, so it reads
+/// as false here rather than as a different way of saying the same thing.
+///
+/// A table header ends the search, for the same reason it does in
+/// [`takes_workspace_lints`]: a key of this name under some other table is a
+/// different key.
+pub fn takes_workspace_license(manifest: &str) -> bool {
+    let mut inside = false;
+    for line in manifest.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            inside = line == "[package]";
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if key.trim() == "license.workspace" {
+            let value = value.split('#').next().unwrap_or(value);
+            return value.trim() == "true";
+        }
+    }
+    false
+}
+
 /// The paths `git grep` reported, given its output and its exit status.
 ///
 /// `git grep -l` exits 0 when it found something, 1 when it found nothing, and

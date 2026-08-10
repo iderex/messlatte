@@ -45,6 +45,34 @@ edition = "2021"
 rust-version = "1.85.0"
 publish = false
 
+# What every crate in this workspace is licensed as, in one place, so that a
+# member states which license it is under by pointing here rather than by
+# carrying a second copy of the answer (#34, entry 1, decided 2026-08-08).
+#
+# The identifier is read off the notice in `LICENSE` rather than chosen. The
+# how-to-apply block there is filled in with this project's own name and
+# copyright holder, and the grant it states is version 3 or later:
+#
+#     sed -n '632,639p' LICENSE
+#     messlatte, a benchmark for attosecond pulse reconstruction methods against known ground truth.
+#     Copyright (C) 2026  Nils Lehnen
+#
+#     This program is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU Affero General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+# So `AGPL-3.0-or-later` and not `AGPL-3.0-only`. The platform reports the
+# family rather than the option, which is a coarser reading of the same file and
+# not a disagreement with this line:
+#
+#     gh api repos/iderex/messlatte --jq '.license.spdx_id'
+#     AGPL-3.0
+#
+# `crates/tree/tests/workspace_license.rs` refuses a member that does not take
+# this field, for the same reason the lint set below is refused member by member.
+license = "AGPL-3.0-or-later"
+
 # The lint set, in the tree rather than on a command line, so that what is
 # allowed is reviewable and every exception carries the reason it is allowed
 # (#21).
